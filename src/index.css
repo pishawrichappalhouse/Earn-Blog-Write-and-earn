@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900 bg-[#FAFAFA];
+  }
+}
+
+@layer components {
+  .prose p {
+    @apply mb-6 leading-relaxed;
+  }
+  .prose h2 {
+    @apply text-2xl font-bold mt-10 mb-4;
+  }
+  .prose h3 {
+    @apply text-xl font-bold mt-8 mb-3;
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
