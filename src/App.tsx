@@ -21,7 +21,9 @@ import {
   Shield,
   Trash2,
   CheckCircle,
-  History
+  History,
+  Settings,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -141,6 +143,36 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
 };
 
 const AdBanner = ({ type = 'horizontal' }: { type?: 'horizontal' | 'square' }) => {
+  const [adsenseConfig, setAdsenseConfig] = useState(storage.getAdSenseConfig());
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAdsenseConfig(storage.getAdSenseConfig());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  if (adsenseConfig?.isEnabled && adsenseConfig.publisherId) {
+    return (
+      <div className={cn(
+        "bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden min-h-[100px] flex items-center justify-center",
+        type === 'horizontal' ? "w-full h-32" : "w-full aspect-square"
+      )}>
+        {/* Real AdSense Ad Unit */}
+        <ins className="adsbygoogle"
+             style={{ display: 'block' }}
+             data-ad-client={adsenseConfig.publisherId}
+             data-ad-slot="auto"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
+    );
+  }
+
   const ads = [
     { title: 'Master React in 30 Days', desc: 'Join the best-selling course today.', img: 'https://picsum.photos/seed/ad1/400/200' },
     { title: 'Cloud Hosting for Startups', desc: 'Get $200 free credit now.', img: 'https://picsum.photos/seed/ad2/400/200' },
@@ -732,7 +764,8 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
     totalPayouts: number;
     withdrawalHistory: { id: string; amount: number; date: string }[];
   }>({ totalRevenue: 0, totalPayouts: 0, withdrawalHistory: [] });
-  const [activeTab, setActiveTab] = useState<'users' | 'posts'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'adsense'>('users');
+  const [adsenseConfig, setAdsenseConfig] = useState(storage.getAdSenseConfig() || { publisherId: '', isEnabled: false });
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -741,8 +774,16 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
       setUsers(storage.getUsers());
       setPosts(storage.getPosts());
       setStats(storage.getPlatformStats());
+      setAdsenseConfig(storage.getAdSenseConfig() || { publisherId: '', isEnabled: false });
     }
   }, [user, navigate]);
+
+  const handleSaveAdSense = (e: React.FormEvent) => {
+    e.preventDefault();
+    storage.updateAdSenseConfig(adsenseConfig);
+    alert('AdSense settings saved successfully!');
+    window.dispatchEvent(new Event('storage'));
+  };
 
   const handleDeletePost = (id: string) => {
     if (confirm('Are you sure you want to delete this post?')) {
@@ -796,6 +837,12 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
             className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'posts' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
           >
             Posts
+          </button>
+          <button 
+            onClick={() => setActiveTab('adsense')}
+            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'adsense' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
+          >
+            AdSense
           </button>
         </div>
       </div>
@@ -863,6 +910,7 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
         {activeTab === 'users' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
+              {/* ... existing users table ... */}
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
@@ -914,7 +962,7 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : activeTab === 'posts' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -953,6 +1001,79 @@ const AdminDashboard = ({ user }: { user: UserType | null }) => {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="p-12 max-w-2xl mx-auto">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
+                <Settings className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Google AdSense Settings</h2>
+                <p className="text-sm text-gray-500">Configure real ads to start earning money from your platform.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveAdSense} className="space-y-6">
+              <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 mb-8">
+                <h3 className="font-bold text-orange-900 mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" /> How to get your Publisher ID?
+                </h3>
+                <p className="text-xs text-orange-800 leading-relaxed">
+                  1. Log in to your Google AdSense account.<br />
+                  2. Go to <b>Account</b> &gt; <b>Settings</b> &gt; <b>Account Information</b>.<br />
+                  3. Copy your <b>Publisher ID</b> (it looks like <code>pub-xxxxxxxxxxxxxxxx</code>).<br />
+                  4. Paste it below and enable the ads.
+                </p>
+                <a 
+                  href="https://www.google.com/adsense/start/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:underline"
+                >
+                  Go to Google AdSense <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Publisher ID</label>
+                <input 
+                  type="text" 
+                  placeholder="pub-xxxxxxxxxxxxxxxx"
+                  value={adsenseConfig.publisherId}
+                  onChange={(e) => setAdsenseConfig({ ...adsenseConfig, publisherId: e.target.value })}
+                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <div>
+                  <p className="font-bold text-gray-900">Enable Real Ads</p>
+                  <p className="text-xs text-gray-500">Show real Google ads across the site.</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setAdsenseConfig({ ...adsenseConfig, isEnabled: !adsenseConfig.isEnabled })}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all relative",
+                    adsenseConfig.isEnabled ? "bg-orange-600" : "bg-gray-300"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                    adsenseConfig.isEnabled ? "left-7" : "left-1"
+                  )} />
+                </button>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg"
+              >
+                Save AdSense Configuration
+              </button>
+            </form>
           </div>
         )}
       </div>

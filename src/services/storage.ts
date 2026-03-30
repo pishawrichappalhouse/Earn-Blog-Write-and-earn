@@ -41,6 +41,10 @@ interface AppData {
     totalPayouts: number;
     withdrawalHistory: { id: string; amount: number; date: string }[];
   };
+  adsenseConfig?: {
+    publisherId: string;
+    isEnabled: boolean;
+  };
 }
 
 const INITIAL_DATA: AppData = {
@@ -87,6 +91,10 @@ const INITIAL_DATA: AppData = {
     totalRevenue: 540.20,
     totalPayouts: 120.00,
     withdrawalHistory: [],
+  },
+  adsenseConfig: {
+    publisherId: 'ca-pub-7554219557678246',
+    isEnabled: true,
   }
 };
 
@@ -255,5 +263,13 @@ export const storage = {
       return true;
     }
     return false;
+  },
+
+  getAdSenseConfig: () => storage.getData().adsenseConfig,
+
+  updateAdSenseConfig: (config: { publisherId: string; isEnabled: boolean }) => {
+    const data = storage.getData();
+    data.adsenseConfig = config;
+    storage.saveData(data);
   },
 };
