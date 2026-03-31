@@ -397,12 +397,15 @@ const Navbar = () => {
   );
 };
 
+const pushedElements = new WeakSet<HTMLElement>();
+
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
   const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
-    if (adRef.current && !adRef.current.getAttribute('data-adsbygoogle-status')) {
+    if (adRef.current && !pushedElements.has(adRef.current) && !adRef.current.hasAttribute('data-adsbygoogle-status')) {
+      pushedElements.add(adRef.current);
       try {
         // @ts-ignore
         (window.adsbygoogle = window.adsbygoogle || []).push({});
