@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and earnings information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "coins": { "type": "number", "description": "Current coins balance" },
+        "totalEarned": { "type": "number", "description": "Total coins earned ever" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "coins", "totalEarned", "role", "createdAt"]
+    },
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "A blog post created by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "category": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "views": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "authorId", "authorName", "category", "views", "status", "createdAt"]
+    },
+    "WithdrawalRequest": {
+      "title": "Withdrawal Request",
+      "description": "A request to withdraw coins for cash",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "amount": { "type": "number", "description": "Amount in coins" },
+        "method": { "type": "string", "enum": ["JazzCash", "EasyPaisa", "Bank"] },
+        "details": { "type": "string", "description": "Account number or bank details" },
+        "status": { "type": "string", "enum": ["pending", "approved", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "amount", "method", "details", "status", "createdAt"]
+    },
+    "PlatformSettings": {
+      "title": "Platform Settings",
+      "description": "Global settings for the platform",
+      "type": "object",
+      "properties": {
+        "coinValuePerView": { "type": "number", "description": "How many coins earned per view" },
+        "minWithdrawal": { "type": "number", "description": "Minimum coins required for withdrawal" }
+      },
+      "required": ["coinValuePerView", "minWithdrawal"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/posts/{postId}": { "schema": "BlogPost", "description": "Blog posts" },
+    "/withdrawals/{requestId}": { "schema": "WithdrawalRequest", "description": "Withdrawal requests" },
+    "/settings/global": { "schema": "PlatformSettings", "description": "Global platform settings" }
+  }
+}

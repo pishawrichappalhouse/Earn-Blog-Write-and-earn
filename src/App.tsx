@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -23,18 +23,139 @@ import {
   CheckCircle,
   History,
   Settings,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  Wallet,
+  AlertCircle,
+  Check,
+  Ban
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { storage, Post, User as UserType } from './services/storage';
+import { Toaster, toast } from 'sonner';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  signOut, 
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  addDoc, 
+  orderBy, 
+  increment,
+  getDocs,
+  deleteDoc,
+  serverTimestamp,
+  Timestamp
+} from 'firebase/firestore';
+import { auth, db, googleProvider } from './firebase';
 import { cn } from './lib/utils';
-import ReactMarkdown from 'react-markdown';
+
+// --- Types ---
+
+interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  coins: number;
+  totalEarned: number;
+  role: 'user' | 'admin';
+  createdAt: any;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  category: string;
+  thumbnail?: string;
+  views: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: any;
+}
+
+interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  method: 'JazzCash' | 'EasyPaisa' | 'Bank';
+  details: string;
+  status: 'pending' | 'approved' | 'cancelled';
+  createdAt: any;
+}
+
+interface PlatformSettings {
+  coinValuePerView: number;
+  minWithdrawal: number;
+}
+
+// --- Error Handling ---
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  toast.error(`Firestore Error: ${errInfo.error}`);
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// --- Context ---
+
+const AuthContext = createContext<{
+  user: UserProfile | null;
+  loading: boolean;
+  settings: PlatformSettings;
+} | null>(null);
+
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
 
 // --- Components ---
 
-const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => void }) => {
+const Navbar = () => {
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/login');
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -43,15 +164,14 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-200">
-                E
+                B
               </div>
-              <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">EarnBlog</span>
+              <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">BlogEarn</span>
             </Link>
             
             <div className="hidden md:flex items-center gap-6">
               <Link to="/" className="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">Explore</Link>
-              <Link to="/trending" className="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">Trending</Link>
-              {user?.isAdmin && (
+              {user?.role === 'admin' && (
                 <Link to="/admin" className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1">
                   <Shield className="w-4 h-4" /> Admin
                 </Link>
@@ -60,15 +180,6 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-orange-600 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search stories..." 
-                className="pl-10 pr-4 py-2 bg-gray-50 border-none rounded-full text-sm focus:ring-2 focus:ring-orange-500 w-64 transition-all"
-              />
-            </div>
-
             {user ? (
               <div className="flex items-center gap-4">
                 <Link 
@@ -80,13 +191,15 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
                 </Link>
                 <div className="h-8 w-[1px] bg-gray-200 mx-2" />
                 <Link to="/dashboard" className="flex items-center gap-2 group">
-                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border-2 border-transparent group-hover:border-orange-500 transition-all" />
+                  <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all">
+                    {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-4 h-4" /></div>}
+                  </div>
                   <div className="hidden lg:block">
-                    <p className="text-xs font-bold text-gray-900 leading-none">{user.name}</p>
-                    <p className="text-[10px] text-orange-600 font-medium">${user.balance.toFixed(2)}</p>
+                    <p className="text-xs font-bold text-gray-900 leading-none">{user.displayName}</p>
+                    <p className="text-[10px] text-orange-600 font-medium">{user.coins.toFixed(0)} Coins</p>
                   </div>
                 </Link>
-                <button onClick={onLogout} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
                   <LogOut className="w-5 h-5" />
                 </button>
               </div>
@@ -101,11 +214,6 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
           </div>
 
           <div className="md:hidden flex items-center gap-4">
-            {user && (
-              <Link to="/dashboard" className="w-8 h-8 rounded-full overflow-hidden">
-                <img src={user.avatar} alt={user.name} />
-              </Link>
-            )}
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-600">
               {isMenuOpen ? <X /> : <Menu />}
             </button>
@@ -113,7 +221,6 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
         </div>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div 
@@ -124,12 +231,11 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
           >
             <div className="px-4 py-6 space-y-4">
               <Link to="/" className="block text-lg font-medium text-gray-900">Explore</Link>
-              <Link to="/trending" className="block text-lg font-medium text-gray-900">Trending</Link>
               {user ? (
                 <>
                   <Link to="/dashboard" className="block text-lg font-medium text-gray-900">Dashboard</Link>
                   <Link to="/create" className="block text-lg font-medium text-orange-600">Write a Story</Link>
-                  <button onClick={onLogout} className="block text-lg font-medium text-red-600">Logout</button>
+                  <button onClick={handleLogout} className="block text-lg font-medium text-red-600">Logout</button>
                 </>
               ) : (
                 <Link to="/login" className="block text-lg font-medium text-orange-600">Sign In</Link>
@@ -142,60 +248,23 @@ const Navbar = ({ user, onLogout }: { user: UserType | null; onLogout: () => voi
   );
 };
 
-const AdBanner = ({ type = 'horizontal' }: { type?: 'horizontal' | 'square' }) => {
-  const [adsenseConfig, setAdsenseConfig] = useState(storage.getAdSenseConfig());
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setAdsenseConfig(storage.getAdSenseConfig());
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  if (adsenseConfig?.isEnabled && adsenseConfig.publisherId) {
-    return (
-      <div className={cn(
-        "bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden min-h-[100px] flex items-center justify-center",
-        type === 'horizontal' ? "w-full h-32" : "w-full aspect-square"
-      )}>
-        {/* Real AdSense Ad Unit */}
-        <ins className="adsbygoogle"
-             style={{ display: 'block' }}
-             data-ad-client={adsenseConfig.publisherId}
-             data-ad-slot="auto"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-      </div>
-    );
-  }
-
-  const ads = [
-    { title: 'Master React in 30 Days', desc: 'Join the best-selling course today.', img: 'https://picsum.photos/seed/ad1/400/200' },
-    { title: 'Cloud Hosting for Startups', desc: 'Get $200 free credit now.', img: 'https://picsum.photos/seed/ad2/400/200' },
-    { title: 'AI Writing Assistant', desc: 'Write 10x faster with AI.', img: 'https://picsum.photos/seed/ad3/400/200' },
-  ];
-  const ad = ads[Math.floor(Math.random() * ads.length)];
+const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
+  const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID;
+  
+  if (!publisherId) return (
+    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 flex items-center justify-center text-gray-400 text-xs font-mono">
+      Ad Slot: {position}
+    </div>
+  );
 
   return (
-    <div className={cn(
-      "bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden group cursor-pointer transition-all hover:border-orange-200",
-      type === 'horizontal' ? "flex h-32" : "flex flex-col"
-    )}>
-      <div className={cn("relative overflow-hidden", type === 'horizontal' ? "w-1/3" : "h-40")}>
-        <img src={ad.img} alt="Ad" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-[10px] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Ad</div>
-      </div>
-      <div className="p-4 flex flex-col justify-center flex-1">
-        <h4 className="font-bold text-gray-900 text-sm group-hover:text-orange-600 transition-colors">{ad.title}</h4>
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{ad.desc}</p>
-        <div className="mt-2 flex items-center text-[10px] font-bold text-orange-600 uppercase tracking-widest">
-          Learn More <ChevronRight className="w-3 h-3 ml-1" />
-        </div>
-      </div>
+    <div className="my-8 flex justify-center">
+      <ins className="adsbygoogle"
+           style={{ display: 'block' }}
+           data-ad-client={publisherId}
+           data-ad-slot="auto"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
     </div>
   );
 };
@@ -203,135 +272,147 @@ const AdBanner = ({ type = 'horizontal' }: { type?: 'horizontal' | 'square' }) =
 // --- Pages ---
 
 const Home = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setPosts(storage.getPosts());
+    const q = query(collection(db, 'posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
+
+    return () => unsubscribe();
   }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <AdBanner position="top" />
+      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Main Feed */}
         <div className="lg:col-span-8 space-y-12">
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Latest Stories</h2>
-            <div className="flex gap-2">
-              {['All', 'Tech', 'Finance', 'Life'].map(cat => (
-                <button key={cat} className="px-4 py-1.5 rounded-full text-xs font-bold border border-gray-200 hover:border-orange-500 hover:text-orange-600 transition-all">
-                  {cat}
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="space-y-12">
-            {posts.map((post, idx) => (
-              <motion.article 
-                key={post.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="group grid grid-cols-1 md:grid-cols-12 gap-6 items-start"
-              >
-                <div className="md:col-span-4">
-                  <Link to={`/post/${post.id}`} className="block aspect-[16/10] rounded-2xl overflow-hidden bg-gray-100">
-                    <img 
-                      src={post.thumbnail} 
-                      alt={post.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    />
-                  </Link>
-                </div>
-                <div className="md:col-span-8 space-y-3">
-                  <div className="flex items-center gap-3 text-xs font-bold text-orange-600 uppercase tracking-widest">
-                    <span>{post.category}</span>
-                    <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                    <span className="text-gray-400">{format(new Date(post.createdAt), 'MMM d, yyyy')}</span>
+          {loading ? (
+            <div className="space-y-8">
+              {[1, 2, 3].map(i => <div key={i} className="h-48 bg-gray-100 rounded-3xl animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {posts.map((post, idx) => (
+                <motion.article 
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="group grid grid-cols-1 md:grid-cols-12 gap-6 items-start"
+                >
+                  <div className="md:col-span-4">
+                    <Link to={`/post/${post.id}`} className="block aspect-[16/10] rounded-2xl overflow-hidden bg-gray-100">
+                      <img 
+                        src={post.thumbnail || `https://picsum.photos/seed/${post.id}/800/400`} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        referrerPolicy="no-referrer"
+                      />
+                    </Link>
                   </div>
-                  <Link to={`/post/${post.id}`}>
-                    <h3 className="text-2xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
-                      {post.title}
-                    </h3>
-                  </Link>
-                  <p className="text-gray-500 line-clamp-2 text-sm leading-relaxed">
-                    {post.content}
-                  </p>
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden">
-                        <img src={`https://picsum.photos/seed/${post.authorId}/50/50`} alt={post.authorName} />
-                      </div>
-                      <span className="text-xs font-bold text-gray-700">{post.authorName}</span>
+                  <div className="md:col-span-8 space-y-3">
+                    <div className="flex items-center gap-3 text-xs font-bold text-orange-600 uppercase tracking-widest">
+                      <span>{post.category}</span>
+                      <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                      <span className="text-gray-400">{post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</span>
                     </div>
-                    <div className="flex items-center gap-4 text-gray-400">
-                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter">
-                        <Eye className="w-3 h-3" /> {post.views}
+                    <Link to={`/post/${post.id}`}>
+                      <h3 className="text-2xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
+                        {post.title}
+                      </h3>
+                    </Link>
+                    <p className="text-gray-500 line-clamp-2 text-sm leading-relaxed">
+                      {post.content}
+                    </p>
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-700">{post.authorName}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter text-green-600">
-                        <DollarSign className="w-3 h-3" /> {post.earnings.toFixed(2)}
+                      <div className="flex items-center gap-4 text-gray-400">
+                        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter">
+                          <Eye className="w-3 h-3" /> {post.views}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.article>
-            ))}
-          </div>
+                </motion.article>
+              ))}
+              {posts.length === 0 && <p className="text-center text-gray-500 py-12">No stories found yet.</p>}
+            </div>
+          )}
         </div>
 
-        {/* Sidebar */}
         <div className="lg:col-span-4 space-y-12">
           <div className="bg-orange-50 rounded-3xl p-8 border border-orange-100">
             <h3 className="text-xl font-bold text-gray-900 mb-2">Start Earning Today</h3>
-            <p className="text-sm text-gray-600 mb-6">Join 50,000+ creators who are making a living by sharing their stories.</p>
+            <p className="text-sm text-gray-600 mb-6">Write stories, get views, and earn coins. 1000 coins = Cash payout!</p>
             <Link to="/create" className="flex items-center justify-center gap-2 w-full bg-orange-600 text-white py-3 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200">
               Start Writing <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Sponsored</h3>
-            <AdBanner type="square" />
-            <AdBanner type="square" />
-          </div>
-
-          <div className="space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Top Categories</h3>
-            <div className="flex flex-wrap gap-2">
-              {['Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'].map(cat => (
-                <button key={cat} className="px-4 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-600 hover:border-orange-500 hover:text-orange-600 transition-all">
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
+          <AdBanner position="sidebar" />
         </div>
       </div>
+      
+      <AdBanner position="footer" />
     </div>
   );
 };
 
 const PostView = () => {
   const { id } = useParams();
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const { settings } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (id) {
-      const p = storage.getPost(id);
-      if (p) {
-        setPost(p);
-        storage.incrementViews(id);
-      } else {
-        navigate('/');
-      }
+      const docRef = doc(db, 'posts', id);
+      const unsubscribe = onSnapshot(docRef, async (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data() as BlogPost;
+          setPost({ id: docSnap.id, ...data });
+          
+          // Increment views and award coins
+          // Only if user is authenticated and not the author
+          const currentUserId = auth.currentUser?.uid;
+          if (currentUserId && currentUserId !== data.authorId) {
+            await updateDoc(docRef, { views: increment(1) });
+            const authorRef = doc(db, 'users', data.authorId);
+            await updateDoc(authorRef, { 
+              coins: increment(settings.coinValuePerView),
+              totalEarned: increment(settings.coinValuePerView)
+            });
+          } else if (!currentUserId) {
+            // Public view increment (allowed by rules without auth)
+            await updateDoc(docRef, { views: increment(1) });
+          }
+        } else {
+          toast.error('Post not found');
+          navigate('/');
+        }
+      }, (error) => handleFirestoreError(error, OperationType.GET, `posts/${id}`));
+
+      return () => unsubscribe();
     }
-  }, [id, navigate]);
+  }, [id, navigate, settings.coinValuePerView]);
 
   if (!post) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      <AdBanner position="top" />
+      
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -346,197 +427,93 @@ const PostView = () => {
           </h1>
           <div className="flex items-center justify-center gap-4 pt-4">
             <div className="flex items-center gap-3">
-              <img src={`https://picsum.photos/seed/${post.authorId}/100/100`} alt={post.authorName} className="w-10 h-10 rounded-full" />
               <div className="text-left">
                 <p className="text-sm font-bold text-gray-900">{post.authorName}</p>
-                <p className="text-xs text-gray-400">{format(new Date(post.createdAt), 'MMMM d, yyyy')}</p>
+                <p className="text-xs text-gray-400">{post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}</p>
               </div>
             </div>
             <div className="h-8 w-[1px] bg-gray-200" />
-            <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Share2 className="w-4 h-4 text-gray-400" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Bell className="w-4 h-4 text-gray-400" /></button>
+            <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest">
+              <Eye className="w-4 h-4" /> {post.views} Views
             </div>
           </div>
         </div>
 
-        <div className="aspect-video rounded-3xl overflow-hidden bg-gray-100 shadow-2xl">
-          <img src={post.thumbnail} alt={post.title} className="w-full h-full object-cover" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pt-8">
-          <div className="lg:col-span-8">
-            <div className="prose prose-orange max-w-none">
-              <div className="text-gray-700 text-lg leading-relaxed space-y-6">
-                <ReactMarkdown>
-                  {post.content}
-                </ReactMarkdown>
-              </div>
-            </div>
-
-            <div className="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <button className="flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors">
-                  <ThumbsUp className="w-5 h-5" /> <span className="text-sm font-bold">2.4k</span>
-                </button>
-                <button className="flex items-center gap-2 text-gray-500 hover:text-orange-600 transition-colors">
-                  <MessageSquare className="w-5 h-5" /> <span className="text-sm font-bold">128</span>
-                </button>
-              </div>
-              <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest">
-                <Eye className="w-4 h-4" /> {post.views} Views
-              </div>
-            </div>
+        {post.thumbnail && (
+          <div className="aspect-video rounded-3xl overflow-hidden bg-gray-100 shadow-2xl">
+            <img src={post.thumbnail} alt={post.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
+        )}
 
-          <div className="lg:col-span-4 space-y-8">
-            <div className="sticky top-24 space-y-8">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Sponsored Content</h3>
-              <AdBanner type="square" />
-              <div className="bg-gray-900 rounded-3xl p-6 text-white">
-                <h4 className="font-bold mb-2">Want to earn like {post.authorName.split(' ')[0]}?</h4>
-                <p className="text-xs text-gray-400 mb-4">This post has earned ${post.earnings.toFixed(2)} so far.</p>
-                <Link to="/create" className="block text-center bg-orange-600 py-3 rounded-xl text-sm font-bold hover:bg-orange-700 transition-all">
-                  Start Your Blog
-                </Link>
-              </div>
-            </div>
+        <div className="prose prose-orange max-w-none">
+          <div className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
+            {post.content}
           </div>
         </div>
+        
+        <AdBanner position="inline" />
       </motion.div>
     </div>
   );
 };
 
-const CreatePost = ({ user }: { user: UserType | null }) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [category, setCategory] = useState('Technology');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const navigate = useNavigate();
+const Dashboard = () => {
+  const { user, settings } = useAuth();
+  const [userPosts, setUserPosts] = useState<BlogPost[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawForm, setWithdrawForm] = useState({ method: 'JazzCash', details: '' });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
-
-  if (!user) return null;
-
-  const generateAIContent = async () => {
-    if (!title) return alert('Please enter a title first!');
-    setIsGenerating(true);
-    try {
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Write a professional blog post about "${title}" in the category of ${category}. Use markdown formatting. Make it engaging and informative.`,
+    if (user) {
+      const postsQ = query(collection(db, 'posts'), where('authorId', '==', user.uid), orderBy('createdAt', 'desc'));
+      const postsUnsub = onSnapshot(postsQ, (snapshot) => {
+        setUserPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
       });
-      if (response.text) {
-        setContent(response.text);
-      }
-    } catch (error) {
-      console.error('AI Generation failed:', error);
-      alert('AI Generation failed. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+      const withdrawalsQ = query(collection(db, 'withdrawals'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+      const withdrawalsUnsub = onSnapshot(withdrawalsQ, (snapshot) => {
+        setWithdrawals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithdrawalRequest)));
+      });
+
+      return () => {
+        postsUnsub();
+        withdrawalsUnsub();
+      };
+    }
+  }, [user]);
+
+  const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    storage.createPost({
-      title,
-      content,
-      category,
-      authorId: user.id,
-      authorName: user.name,
-      thumbnail: `https://picsum.photos/seed/${Math.random()}/800/400`,
-    });
-    navigate('/dashboard');
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Create New Story</h1>
-          <div className="flex gap-4">
-            <button 
-              type="button"
-              onClick={generateAIContent}
-              disabled={isGenerating}
-              className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-full font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:opacity-50"
-            >
-              {isGenerating ? 'Generating...' : 'AI Write'}
-            </button>
-            <button 
-              type="submit"
-              className="bg-orange-600 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200"
-            >
-              Publish Story
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-6 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Category</label>
-            <select 
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
-            >
-              {['Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'].map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Title</label>
-            <input 
-              type="text" 
-              placeholder="Enter a catchy title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-4 py-4 text-2xl font-bold focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Content (Markdown supported)</label>
-            <textarea 
-              placeholder="Tell your story..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-xl px-4 py-4 text-lg min-h-[400px] focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-};
-
-const Dashboard = ({ user }: { user: UserType | null }) => {
-  const navigate = useNavigate();
-  const [userPosts, setUserPosts] = useState<Post[]>([]);
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      setUserPosts(storage.getPosts().filter(p => p.authorId === user.id));
+    if (!user) return;
+    if (user.coins < settings.minWithdrawal) {
+      toast.error(`Minimum withdrawal is ${settings.minWithdrawal} coins`);
+      return;
     }
-  }, [user, navigate]);
 
-  const handleUpgrade = () => {
-    if (user && storage.upgradeToPremium(user.id)) {
-      alert('Congratulations! You are now a Premium Member. $10.00 has been added to Platform Revenue.');
+    setIsWithdrawing(true);
+    try {
+      const amount = user.coins;
+      await addDoc(collection(db, 'withdrawals'), {
+        userId: user.uid,
+        userName: user.displayName,
+        amount,
+        method: withdrawForm.method,
+        details: withdrawForm.details,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        coins: 0
+      });
+
+      toast.success('Withdrawal request submitted!');
+      setWithdrawForm({ method: 'JazzCash', details: '' });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'withdrawals');
+    } finally {
+      setIsWithdrawing(false);
     }
   };
 
@@ -545,28 +522,20 @@ const Dashboard = ({ user }: { user: UserType | null }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Stats */}
-        <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-orange-600 mb-4">
-              <div className="p-2 bg-orange-50 rounded-xl"><TrendingUp className="w-5 h-5" /></div>
-              <span className="text-xs font-bold uppercase tracking-widest">Total Views</span>
+              <div className="p-2 bg-orange-50 rounded-xl"><Wallet className="w-5 h-5" /></div>
+              <span className="text-xs font-bold uppercase tracking-widest">Current Balance</span>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{userPosts.reduce((acc, p) => acc + p.views, 0).toLocaleString()}</p>
+            <p className="text-3xl font-bold text-gray-900">{user.coins.toFixed(0)} Coins</p>
           </div>
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-green-600 mb-4">
-              <div className="p-2 bg-green-50 rounded-xl"><DollarSign className="w-5 h-5" /></div>
-              <span className="text-xs font-bold uppercase tracking-widest">Total Earnings</span>
+              <div className="p-2 bg-green-50 rounded-xl"><TrendingUp className="w-5 h-5" /></div>
+              <span className="text-xs font-bold uppercase tracking-widest">Total Earned</span>
             </div>
-            <p className="text-3xl font-bold text-gray-900">${user.totalEarnings.toFixed(2)}</p>
-          </div>
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-3 text-blue-600 mb-4">
-              <div className="p-2 bg-blue-50 rounded-xl"><DollarSign className="w-5 h-5" /></div>
-              <span className="text-xs font-bold uppercase tracking-widest">Available Balance</span>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">${user.balance.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-gray-900">{user.totalEarned.toFixed(0)} Coins</p>
           </div>
           <div className="bg-orange-600 p-6 rounded-3xl text-white shadow-lg shadow-orange-200">
             <div className="flex items-center gap-3 mb-4">
@@ -577,77 +546,104 @@ const Dashboard = ({ user }: { user: UserType | null }) => {
           </div>
         </div>
 
-        {/* My Posts */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-8 space-y-8">
+          <section className="space-y-4">
             <h2 className="text-2xl font-bold text-gray-900">My Stories</h2>
-            <Link to="/create" className="text-sm font-bold text-orange-600 hover:underline">Write New</Link>
-          </div>
-          <div className="space-y-4">
-            {userPosts.map(post => (
-              <div key={post.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
-                <img src={post.thumbnail} className="w-20 h-20 rounded-xl object-cover" />
-                <div className="flex-1">
-                  <h4 className="font-bold text-gray-900 line-clamp-1">{post.title}</h4>
-                  <div className="flex items-center gap-4 mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {post.views}</span>
-                    <span className="flex items-center gap-1 text-green-600"><DollarSign className="w-3 h-3" /> {post.earnings.toFixed(2)}</span>
-                    <span>{format(new Date(post.createdAt), 'MMM d')}</span>
+            <div className="space-y-4">
+              {userPosts.map(post => (
+                <div key={post.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
+                    <img src={post.thumbnail || `https://picsum.photos/seed/${post.id}/200/200`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900 line-clamp-1">{post.title}</h4>
+                    <div className="flex items-center gap-4 mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {post.views}</span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded",
+                        post.status === 'approved' ? "bg-green-50 text-green-600" : 
+                        post.status === 'pending' ? "bg-orange-50 text-orange-600" : "bg-red-50 text-red-600"
+                      )}>{post.status}</span>
+                    </div>
+                  </div>
+                  <Link to={`/post/${post.id}`} className="p-2 hover:bg-gray-50 rounded-full"><ChevronRight className="w-5 h-5 text-gray-400" /></Link>
                 </div>
-                <Link to={`/post/${post.id}`} className="p-2 hover:bg-gray-50 rounded-full"><ChevronRight className="w-5 h-5 text-gray-400" /></Link>
-              </div>
-            ))}
-            {userPosts.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                <PenSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">You haven't published any stories yet.</p>
-                <Link to="/create" className="mt-4 inline-block text-orange-600 font-bold">Start Writing</Link>
-              </div>
-            )}
-          </div>
+              ))}
+              {userPosts.length === 0 && <p className="text-gray-400 text-center py-8">No stories yet.</p>}
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900">Withdrawal History</h2>
+            <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Method</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {withdrawals.map(req => (
+                    <tr key={req.id}>
+                      <td className="px-6 py-4 text-sm text-gray-600">{req.createdAt?.toDate ? format(req.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{req.amount} Coins</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{req.method}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest",
+                          req.status === 'approved' ? "bg-green-50 text-green-600" : 
+                          req.status === 'pending' ? "bg-orange-50 text-orange-600" : "bg-red-50 text-red-600"
+                        )}>{req.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {withdrawals.length === 0 && <p className="text-center py-8 text-gray-400">No withdrawals yet.</p>}
+            </div>
+          </section>
         </div>
 
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-gray-900 rounded-3xl p-8 text-white">
-            <h3 className="text-xl font-bold mb-4">Withdraw Earnings</h3>
-            <p className="text-sm text-gray-400 mb-6">Minimum withdrawal is $50.00. You are currently at ${(user.balance / 50 * 100).toFixed(0)}% of your goal.</p>
-            <div className="w-full bg-white/10 h-2 rounded-full mb-8 overflow-hidden">
-              <div className="bg-orange-600 h-full" style={{ width: `${Math.min(100, (user.balance / 50 * 100))}%` }} />
-            </div>
-            <button disabled className="w-full py-3 rounded-xl bg-white/10 text-white/50 font-bold cursor-not-allowed">
-              Withdraw Funds
-            </button>
-          </div>
-          
-          <div className="bg-white rounded-3xl p-6 border border-gray-100">
-            <h3 className="font-bold text-gray-900 mb-4">Earnings Tips</h3>
-            <ul className="space-y-4">
-              <li className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold">1</div>
-                <p className="text-xs text-gray-600">Share your stories on social media to increase views.</p>
-              </li>
-              <li className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold">2</div>
-                <p className="text-xs text-gray-600">Use high-quality thumbnails to improve click-through rates.</p>
-              </li>
-              <li className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-[10px] font-bold">3</div>
-                <p className="text-xs text-gray-600">Write consistently to build a loyal audience.</p>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl shadow-purple-100">
-            <h3 className="text-xl font-bold mb-2">Go Premium</h3>
-            <p className="text-sm text-purple-100 mb-6">Get 100% earnings, unlimited AI writing, and a verified badge.</p>
-            <button 
-              onClick={handleUpgrade}
-              className="w-full py-3 bg-white text-purple-700 rounded-xl font-bold hover:bg-purple-50 transition-all"
-            >
-              Upgrade for $10/mo
-            </button>
+        <div className="lg:col-span-4 space-y-8">
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Request Withdrawal</h3>
+            <form onSubmit={handleWithdraw} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Method</label>
+                <select 
+                  value={withdrawForm.method}
+                  onChange={e => setWithdrawForm({ ...withdrawForm, method: e.target.value })}
+                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="JazzCash">JazzCash</option>
+                  <option value="EasyPaisa">EasyPaisa</option>
+                  <option value="Bank">Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Account Details</label>
+                <textarea 
+                  placeholder="Enter account number or bank details..."
+                  value={withdrawForm.details}
+                  onChange={e => setWithdrawForm({ ...withdrawForm, details: e.target.value })}
+                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 min-h-[100px]"
+                  required
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={isWithdrawing || user.coins < settings.minWithdrawal}
+                className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all disabled:opacity-50 shadow-lg shadow-orange-100"
+              >
+                {isWithdrawing ? 'Processing...' : `Withdraw ${user.coins.toFixed(0)} Coins`}
+              </button>
+              {user.coins < settings.minWithdrawal && (
+                <p className="text-[10px] text-red-500 text-center">Minimum withdrawal: {settings.minWithdrawal} coins</p>
+              )}
+            </form>
           </div>
         </div>
       </div>
@@ -655,22 +651,395 @@ const Dashboard = ({ user }: { user: UserType | null }) => {
   );
 };
 
-const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: string, isSignUp?: boolean) => void }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+const Editor = () => {
+  const { user } = useAuth();
+  const [form, setForm] = useState({ title: '', content: '', category: 'Technology', thumbnail: '' });
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (!user) return;
+    setLoading(true);
     try {
-      onAuth(email, name, password, isSignUp);
+      await addDoc(collection(db, 'posts'), {
+        ...form,
+        authorId: user.uid,
+        authorName: user.displayName,
+        views: 0,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      toast.success('Story submitted for approval!');
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'posts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Create New Story</h1>
+          <button 
+            type="submit"
+            disabled={loading}
+            className="bg-orange-600 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 disabled:opacity-50"
+          >
+            {loading ? 'Publishing...' : 'Submit Story'}
+          </button>
+        </div>
+
+        <div className="space-y-6 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Category</label>
+              <select 
+                value={form.category}
+                onChange={e => setForm({ ...form, category: e.target.value })}
+                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                {['Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'].map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Thumbnail URL (Optional)</label>
+              <input 
+                type="url" 
+                placeholder="https://example.com/image.jpg"
+                value={form.thumbnail}
+                onChange={e => setForm({ ...form, thumbnail: e.target.value })}
+                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Title</label>
+            <input 
+              type="text" 
+              placeholder="Enter a catchy title..."
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              className="w-full bg-gray-50 border-none rounded-xl px-4 py-4 text-2xl font-bold focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Content</label>
+            <textarea 
+              placeholder="Tell your story..."
+              value={form.content}
+              onChange={e => setForm({ ...form, content: e.target.value })}
+              className="w-full bg-gray-50 border-none rounded-xl px-4 py-4 text-lg min-h-[400px] focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const AdminPanel = () => {
+  const { user, settings } = useAuth();
+  const [activeTab, setActiveTab] = useState<'posts' | 'withdrawals' | 'users' | 'settings'>('posts');
+  const [pendingPosts, setPendingPosts] = useState<BlogPost[]>([]);
+  const [pendingWithdrawals, setPendingWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0 });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      navigate('/');
+      return;
+    }
+
+    const postsUnsub = onSnapshot(query(collection(db, 'posts'), where('status', '==', 'pending')), (snapshot) => {
+      setPendingPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+    });
+
+    const withdrawalsUnsub = onSnapshot(query(collection(db, 'withdrawals'), where('status', '==', 'pending')), (snapshot) => {
+      setPendingWithdrawals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithdrawalRequest)));
+    });
+
+    const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const users = snapshot.docs.map(doc => doc.data() as UserProfile);
+      setAllUsers(users);
+      setPlatformStats(prev => ({
+        ...prev,
+        totalUsers: users.length,
+        totalEarnings: users.reduce((acc, u) => acc + u.totalEarned, 0)
+      }));
+    });
+
+    const allWithdrawalsUnsub = onSnapshot(collection(db, 'withdrawals'), (snapshot) => {
+      const withdrawals = snapshot.docs.map(doc => doc.data() as WithdrawalRequest);
+      setPlatformStats(prev => ({
+        ...prev,
+        totalWithdrawals: withdrawals.filter(w => w.status === 'approved').reduce((acc, w) => acc + w.amount, 0)
+      }));
+    });
+
+    return () => {
+      postsUnsub();
+      withdrawalsUnsub();
+      usersUnsub();
+      allWithdrawalsUnsub();
+    };
+  }, [user, navigate]);
+
+  const handlePostAction = async (id: string, status: 'approved' | 'rejected') => {
+    await updateDoc(doc(db, 'posts', id), { status });
+    toast.success(`Post ${status}!`);
+  };
+
+  const handleWithdrawalAction = async (id: string, status: 'approved' | 'cancelled') => {
+    await updateDoc(doc(db, 'withdrawals', id), { status });
+    toast.success(`Withdrawal ${status}!`);
+  };
+
+  const updateSettings = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const coinValuePerView = Number(formData.get('coinValuePerView'));
+    const minWithdrawal = Number(formData.get('minWithdrawal'));
+    
+    await setDoc(doc(db, 'settings', 'global'), { coinValuePerView, minWithdrawal });
+    toast.success('Settings updated!');
+  };
+
+  if (user?.role !== 'admin') return null;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="flex items-center justify-between mb-12">
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
+        </h1>
+        <div className="flex bg-gray-100 p-1 rounded-2xl overflow-x-auto">
+          {['posts', 'withdrawals', 'users', 'settings'].map(tab => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={cn(
+                "px-6 py-2 rounded-xl text-sm font-bold transition-all capitalize whitespace-nowrap",
+                activeTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="bg-purple-600 p-8 rounded-[32px] text-white shadow-xl shadow-purple-100">
+          <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Users</p>
+          <p className="text-4xl font-bold">{platformStats.totalUsers}</p>
+        </div>
+        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Total Coins Earned</p>
+          <p className="text-4xl font-bold text-gray-900">{platformStats.totalEarnings.toFixed(0)}</p>
+        </div>
+        <div className="bg-green-600 p-8 rounded-[32px] text-white shadow-xl shadow-green-100">
+          <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Payouts</p>
+          <p className="text-4xl font-bold">{platformStats.totalWithdrawals.toFixed(0)} Coins</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+        {activeTab === 'posts' && (
+          <div className="p-8">
+            <h2 className="text-xl font-bold mb-6">Pending Approvals ({pendingPosts.length})</h2>
+            <div className="space-y-4">
+              {pendingPosts.map(post => (
+                <div key={post.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                  <div>
+                    <h4 className="font-bold text-gray-900">{post.title}</h4>
+                    <p className="text-xs text-gray-500">By {post.authorName} • {post.category}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handlePostAction(post.id, 'approved')} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all"><Check className="w-5 h-5" /></button>
+                    <button onClick={() => handlePostAction(post.id, 'rejected')} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"><Ban className="w-5 h-5" /></button>
+                  </div>
+                </div>
+              ))}
+              {pendingPosts.length === 0 && <p className="text-center text-gray-400">No pending posts.</p>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'withdrawals' && (
+          <div className="p-8">
+            <h2 className="text-xl font-bold mb-6">Pending Withdrawals ({pendingWithdrawals.length})</h2>
+            <div className="space-y-4">
+              {pendingWithdrawals.map(req => (
+                <div key={req.id} className="p-6 bg-gray-50 rounded-3xl space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-gray-900">{req.userName}</h4>
+                      <p className="text-sm text-orange-600 font-bold">{req.amount} Coins</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleWithdrawalAction(req.id, 'approved')} className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700">Approve</button>
+                      <button onClick={() => handleWithdrawalAction(req.id, 'cancelled')} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700">Cancel</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Method</p>
+                      <p className="text-gray-900 font-medium">{req.method}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Details</p>
+                      <p className="text-gray-900 font-medium">{req.details}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {pendingWithdrawals.length === 0 && <p className="text-center text-gray-400">No pending withdrawals.</p>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Coins</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Total Earned</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {allUsers.map(u => (
+                  <tr key={u.uid}>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                          {u.photoURL && <img src={u.photoURL} alt={u.displayName} />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{u.displayName}</p>
+                          <p className="text-xs text-gray-400">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 capitalize text-sm">{u.role}</td>
+                    <td className="px-8 py-4 text-sm font-bold">{u.coins.toFixed(0)}</td>
+                    <td className="px-8 py-4 text-sm font-bold text-green-600">{u.totalEarned.toFixed(0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="p-12 max-w-md mx-auto">
+            <form onSubmit={updateSettings} className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Coins Per View</label>
+                <input 
+                  type="number" 
+                  step="0.1"
+                  name="coinValuePerView"
+                  defaultValue={settings.coinValuePerView}
+                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Minimum Withdrawal (Coins)</label>
+                <input 
+                  type="number" 
+                  name="minWithdrawal"
+                  defaultValue={settings.minWithdrawal}
+                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
+              <button type="submit" className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg">Save Settings</button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Auth = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        const { user } = await createUserWithEmailAndPassword(auth, email, password);
+        const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: name,
+          coins: 0,
+          totalEarned: 0,
+          role: isAdmin ? 'admin' : 'user',
+          createdAt: serverTimestamp()
+        });
+      } else {
+        const { user } = await signInWithEmailAndPassword(auth, email, password);
+        // Ensure admin role is synced if it's the admin email
+        if (email === 'pishawrichappalhouse@gmail.com') {
+          await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
+        }
+      }
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    try {
+      const { user } = await signInWithPopup(auth, googleProvider);
+      const isAdmin = user.email === 'pishawrichappalhouse@gmail.com';
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'User',
+          photoURL: user.photoURL,
+          coins: 0,
+          totalEarned: 0,
+          role: isAdmin ? 'admin' : 'user',
+          createdAt: serverTimestamp()
+        });
+      } else if (isAdmin) {
+        await updateDoc(docRef, { role: 'admin' });
+      }
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -683,21 +1052,12 @@ const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: st
       >
         <div className="text-center mb-10">
           <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-xl shadow-orange-200">
-            E
+            B
           </div>
           <h1 className="text-3xl font-bold text-gray-900">{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
-          <p className="text-gray-500 mt-2">
-            {isSignUp ? 'Join our community of creators today.' : 'Start your journey to financial freedom through writing.'}
-          </p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-medium rounded-2xl border border-red-100">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleAuth} className="space-y-6">
           {isSignUp && (
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Full Name</label>
@@ -705,9 +1065,9 @@ const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: st
                 type="text" 
                 placeholder="John Doe"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
-                required={isSignUp}
+                required
               />
             </div>
           )}
@@ -717,7 +1077,7 @@ const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: st
               type="email" 
               placeholder="john@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
               required
             />
@@ -728,18 +1088,28 @@ const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: st
               type="password" 
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
           <button 
             type="submit"
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
+            disabled={loading}
+            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 disabled:opacity-50"
           >
-            {isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
         </form>
+
+        <div className="mt-6">
+          <button 
+            onClick={handleGoogle}
+            className="w-full bg-white border border-gray-200 text-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+          >
+            Continue with Google
+          </button>
+        </div>
 
         <div className="mt-8 pt-8 border-t border-gray-100 text-center">
           <button 
@@ -748,416 +1118,86 @@ const Login = ({ onAuth }: { onAuth: (email: string, name: string, password?: st
           >
             {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>
-          <p className="text-[10px] text-gray-400 mt-4">By continuing, you agree to our Terms of Service and Privacy Policy.</p>
         </div>
       </motion.div>
     </div>
   );
 };
 
-const AdminDashboard = ({ user }: { user: UserType | null }) => {
-  const navigate = useNavigate();
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [stats, setStats] = useState<{
-    totalRevenue: number;
-    totalPayouts: number;
-    withdrawalHistory: { id: string; amount: number; date: string }[];
-  }>({ totalRevenue: 0, totalPayouts: 0, withdrawalHistory: [] });
-  const [activeTab, setActiveTab] = useState<'users' | 'posts' | 'adsense'>('users');
-  const [adsenseConfig, setAdsenseConfig] = useState(storage.getAdSenseConfig() || { publisherId: '', isEnabled: false });
+// --- Provider ---
+
+const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<PlatformSettings>({ coinValuePerView: 1, minWithdrawal: 1000 });
 
   useEffect(() => {
-    if (!user?.isAdmin) {
-      navigate('/');
-    } else {
-      setUsers(storage.getUsers());
-      setPosts(storage.getPosts());
-      setStats(storage.getPlatformStats());
-      setAdsenseConfig(storage.getAdSenseConfig() || { publisherId: '', isEnabled: false });
-    }
-  }, [user, navigate]);
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const unsubUser = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            setUser(docSnap.data() as UserProfile);
+          }
+          setLoading(false);
+        });
+        return () => unsubUser();
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
 
-  const handleSaveAdSense = (e: React.FormEvent) => {
-    e.preventDefault();
-    storage.updateAdSenseConfig(adsenseConfig);
-    alert('AdSense settings saved successfully!');
-    window.dispatchEvent(new Event('storage'));
-  };
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+      if (docSnap.exists()) {
+        setSettings(docSnap.data() as PlatformSettings);
+      } else {
+        // Bootstrap settings if they don't exist
+        setDoc(doc(db, 'settings', 'global'), {
+          coinValuePerView: 1,
+          minWithdrawal: 1000
+        }).catch(console.error);
+      }
+    });
 
-  const handleDeletePost = (id: string) => {
-    if (confirm('Are you sure you want to delete this post?')) {
-      storage.deletePost(id);
-      setPosts(storage.getPosts());
-    }
-  };
-
-  const handleDeleteUser = (id: string) => {
-    if (confirm('Are you sure you want to delete this user and all their posts?')) {
-      storage.deleteUser(id);
-      setUsers(storage.getUsers());
-      setPosts(storage.getPosts());
-    }
-  };
-
-  const handlePayout = (userId: string) => {
-    storage.updateUserBalance(userId, 0);
-    setUsers(storage.getUsers());
-    setStats(storage.getPlatformStats());
-    alert('Payout successful! Balance reset to $0.');
-  };
-
-  const handleWithdrawProfit = () => {
-    const profit = storage.withdrawPlatformProfit();
-    if (profit > 0) {
-      setStats(storage.getPlatformStats());
-      alert(`Success! $${profit.toFixed(2)} has been sent to your linked bank account (Simulated).`);
-    } else {
-      alert('No profit available to withdraw.');
-    }
-  };
-
-  if (!user?.isAdmin) return null;
+    return () => {
+      unsubAuth();
+      unsubSettings();
+    };
+  }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
-        </h1>
-        <div className="flex bg-gray-100 p-1 rounded-2xl">
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'users' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
-          >
-            Users
-          </button>
-          <button 
-            onClick={() => setActiveTab('posts')}
-            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'posts' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
-          >
-            Posts
-          </button>
-          <button 
-            onClick={() => setActiveTab('adsense')}
-            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'adsense' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
-          >
-            AdSense
-          </button>
-        </div>
-      </div>
-
-      {/* Platform Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div className="bg-purple-600 p-8 rounded-[32px] text-white shadow-xl shadow-purple-100">
-          <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Platform Revenue (AdSense)</p>
-          <p className="text-4xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
-        </div>
-        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Total Payouts to Users</p>
-          <p className="text-4xl font-bold text-gray-900">${stats.totalPayouts.toFixed(2)}</p>
-        </div>
-        <div className="bg-green-600 p-8 rounded-[32px] text-white shadow-xl shadow-green-100 flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Net Platform Profit</p>
-            <p className="text-4xl font-bold">${(stats.totalRevenue - stats.totalPayouts).toFixed(2)}</p>
-          </div>
-          <button 
-            onClick={handleWithdrawProfit}
-            className="mt-6 w-full py-3 bg-white text-green-600 rounded-xl font-bold hover:bg-green-50 transition-all shadow-lg"
-          >
-            Withdraw Profit
-          </button>
-        </div>
-      </div>
-
-      {/* Withdrawal History */}
-      {stats.withdrawalHistory.length > 0 && (
-        <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <History className="w-5 h-5 text-gray-400" /> Withdrawal History
-          </h2>
-          <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">ID</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {stats.withdrawalHistory.map(w => (
-                  <tr key={w.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-8 py-4 font-mono text-xs text-gray-400">{w.id}</td>
-                    <td className="px-8 py-4 font-bold text-gray-900">${w.amount.toFixed(2)}</td>
-                    <td className="px-8 py-4 text-sm text-gray-500">{new Date(w.date).toLocaleDateString()}</td>
-                    <td className="px-8 py-4">
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                        Completed
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
-        {activeTab === 'users' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              {/* ... existing users table ... */}
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Earnings</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Balance</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {users.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <img src={u.avatar} className="w-10 h-10 rounded-full" />
-                        <div>
-                          <p className="font-bold text-gray-900">{u.name}</p>
-                          <p className="text-xs text-gray-400">{u.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 font-bold text-gray-900">${u.totalEarnings.toFixed(2)}</td>
-                    <td className="px-8 py-6">
-                      <span className={cn("font-bold", u.balance >= 50 ? "text-green-600" : "text-gray-900")}>
-                        ${u.balance.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        {u.balance >= 50 && (
-                          <button 
-                            onClick={() => handlePayout(u.id)}
-                            className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all"
-                            title="Process Payout"
-                          >
-                            <CheckCircle className="w-5 h-5" />
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleDeleteUser(u.id)}
-                          className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all"
-                          title="Delete User"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : activeTab === 'posts' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Story</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Author</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Stats</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {posts.map(p => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <img src={p.thumbnail} className="w-12 h-12 rounded-xl object-cover" />
-                        <p className="font-bold text-gray-900 line-clamp-1 max-w-xs">{p.title}</p>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-sm text-gray-600">{p.authorName}</td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4 text-xs font-bold text-gray-400">
-                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {p.views}</span>
-                        <span className="flex items-center gap-1 text-green-600"><DollarSign className="w-3 h-3" /> {p.earnings.toFixed(2)}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <button 
-                        onClick={() => handleDeletePost(p.id)}
-                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 max-w-2xl mx-auto">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
-                <Settings className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Google AdSense Settings</h2>
-                <p className="text-sm text-gray-500">Configure real ads to start earning money from your platform.</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveAdSense} className="space-y-6">
-              <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 mb-8">
-                <h3 className="font-bold text-orange-900 mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" /> How to get your Publisher ID?
-                </h3>
-                <p className="text-xs text-orange-800 leading-relaxed">
-                  1. Log in to your Google AdSense account.<br />
-                  2. Go to <b>Account</b> &gt; <b>Settings</b> &gt; <b>Account Information</b>.<br />
-                  3. Copy your <b>Publisher ID</b> (it looks like <code>pub-xxxxxxxxxxxxxxxx</code>).<br />
-                  4. Paste it below and enable the ads.
-                </p>
-                <a 
-                  href="https://www.google.com/adsense/start/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:underline"
-                >
-                  Go to Google AdSense <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Publisher ID</label>
-                <input 
-                  type="text" 
-                  placeholder="pub-xxxxxxxxxxxxxxxx"
-                  value={adsenseConfig.publisherId}
-                  onChange={(e) => setAdsenseConfig({ ...adsenseConfig, publisherId: e.target.value })}
-                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                <div>
-                  <p className="font-bold text-gray-900">Enable Real Ads</p>
-                  <p className="text-xs text-gray-500">Show real Google ads across the site.</p>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => setAdsenseConfig({ ...adsenseConfig, isEnabled: !adsenseConfig.isEnabled })}
-                  className={cn(
-                    "w-12 h-6 rounded-full transition-all relative",
-                    adsenseConfig.isEnabled ? "bg-orange-600" : "bg-gray-300"
-                  )}
-                >
-                  <div className={cn(
-                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
-                    adsenseConfig.isEnabled ? "left-7" : "left-1"
-                  )} />
-                </button>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg"
-              >
-                Save AdSense Configuration
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
-    </div>
+    <AuthContext.Provider value={{ user, loading, settings }}>
+      {!loading && children}
+    </AuthContext.Provider>
   );
 };
 
-// --- Main App ---
+// --- App ---
 
 export default function App() {
-  const [user, setUser] = useState<UserType | null>(null);
-
-  useEffect(() => {
-    setUser(storage.getCurrentUser());
-  }, []);
-
-  const handleAuth = (email: string, name: string, password?: string, isSignUp?: boolean) => {
-    const user = isSignUp 
-      ? storage.signup(email, name, password)
-      : storage.signin(email, password);
-    setUser(user);
-  };
-
-  const handleLogout = () => {
-    storage.logout();
-    setUser(null);
-  };
-
   return (
     <Router>
-      <div className="min-h-screen bg-[#FAFAFA] font-sans text-gray-900">
-        <Navbar user={user} onLogout={handleLogout} />
-        
-        <main>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/post/:id" element={<PostView />} />
-            <Route path="/create" element={<CreatePost user={user} />} />
-            <Route path="/dashboard" element={<Dashboard user={user} />} />
-            <Route path="/admin" element={<AdminDashboard user={user} />} />
-            <Route path="/login" element={<Login onAuth={handleAuth} />} />
-            <Route path="/trending" element={<Home />} />
-          </Routes>
-        </main>
-
-        <footer className="bg-white border-t border-gray-100 py-12 mt-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-              <div className="col-span-1 md:col-span-2 space-y-6">
-                <Link to="/" className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold">E</div>
-                  <span className="text-lg font-bold">EarnBlog</span>
-                </Link>
-                <p className="text-sm text-gray-500 max-w-xs">
-                  The world's first decentralized blogging platform where creators keep 100% of their ad revenue.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm mb-4">Platform</h4>
-                <ul className="space-y-2 text-sm text-gray-500">
-                  <li><Link to="/">Explore</Link></li>
-                  <li><Link to="/trending">Trending</Link></li>
-                  <li><Link to="/create">Write</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm mb-4">Support</h4>
-                <ul className="space-y-2 text-sm text-gray-500">
-                  <li><a href="#">Help Center</a></li>
-                  <li><a href="#">Terms</a></li>
-                  <li><a href="#">Privacy</a></li>
-                </ul>
-              </div>
+      <AuthProvider>
+        <div className="min-h-screen bg-[#FAFAFA] font-sans text-gray-900">
+          <Toaster position="top-center" richColors />
+          <Navbar />
+          <main>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/post/:id" element={<PostView />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/create" element={<Editor />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/login" element={<Auth />} />
+            </Routes>
+          </main>
+          <footer className="bg-white border-t border-gray-100 py-12 mt-24">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <p className="text-xs text-gray-400">© 2026 BlogEarn Inc. All rights reserved.</p>
             </div>
-            <div className="mt-12 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-xs text-gray-400">© 2026 EarnBlog Inc. All rights reserved.</p>
-              <div className="flex gap-6">
-                <a href="#" className="text-gray-400 hover:text-orange-600 transition-colors"><Share2 className="w-4 h-4" /></a>
-                <a href="#" className="text-gray-400 hover:text-orange-600 transition-colors"><TrendingUp className="w-4 h-4" /></a>
-              </div>
-            </div>
-          </div>
-        </footer>
-      </div>
+          </footer>
+        </div>
+      </AuthProvider>
     </Router>
   );
 }
