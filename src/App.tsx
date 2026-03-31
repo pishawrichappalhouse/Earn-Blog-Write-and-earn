@@ -127,7 +127,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  toast.error(`Firestore Error: ${errInfo.error}`);
+  toast.error(`Permission Error at ${path}: ${errInfo.error}`);
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -249,14 +249,8 @@ const Navbar = () => {
 };
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
-  const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID;
+  const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
   
-  if (!publisherId) return (
-    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 flex items-center justify-center text-gray-400 text-xs font-mono">
-      Ad Slot: {position}
-    </div>
-  );
-
   return (
     <div className="my-8 flex justify-center">
       <ins className="adsbygoogle"
@@ -274,16 +268,27 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
 const Home = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const categories = ['All', 'Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'];
 
   useEffect(() => {
-    const q = query(collection(db, 'posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    let q = query(collection(db, 'posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    
+    if (selectedCategory !== 'All') {
+      q = query(collection(db, 'posts'), 
+        where('status', '==', 'approved'), 
+        where('category', '==', selectedCategory),
+        orderBy('createdAt', 'desc')
+      );
+    }
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
       setLoading(false);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
 
     return () => unsubscribe();
-  }, []);
+  }, [selectedCategory]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -291,8 +296,27 @@ const Home = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-12">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Latest Stories</h2>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Latest Stories</h2>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                    selectedCategory === cat 
+                      ? "bg-orange-600 text-white shadow-lg shadow-orange-100" 
+                      : "bg-white text-gray-400 border border-gray-100 hover:border-orange-200 hover:text-orange-600"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -608,8 +632,12 @@ const Dashboard = () => {
         </div>
 
         <div className="lg:col-span-4 space-y-8">
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Request Withdrawal</h3>
+            <div className="mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-1">Support Contact</p>
+              <p className="text-sm font-bold text-gray-900">WhatsApp: +923121130219</p>
+            </div>
             <form onSubmit={handleWithdraw} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Method</label>
@@ -1150,12 +1178,12 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
         setSettings(docSnap.data() as PlatformSettings);
-      } else {
-        // Bootstrap settings if they don't exist
+      } else if (auth.currentUser) {
+        // Bootstrap settings if they don't exist and user is authenticated
         setDoc(doc(db, 'settings', 'global'), {
           coinValuePerView: 1,
           minWithdrawal: 1000
-        }).catch(console.error);
+        }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/global'));
       }
     });
 
@@ -1193,6 +1221,10 @@ export default function App() {
           </main>
           <footer className="bg-white border-t border-gray-100 py-12 mt-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <div className="mb-6">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Contact Support</p>
+                <p className="text-lg font-bold text-gray-900">+923121130219</p>
+              </div>
               <p className="text-xs text-gray-400">© 2026 BlogEarn Inc. All rights reserved.</p>
             </div>
           </footer>

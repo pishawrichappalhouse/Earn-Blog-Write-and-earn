@@ -79,8 +79,7 @@ service cloud.firestore {
     }
 
     function isValidPost(data) {
-      return data.keys().hasAll(['id', 'title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 &&
+      return data.keys().hasAll(['title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt']) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
              data.content is string && data.content.size() >= 10 &&
              data.authorId is string && data.authorId == request.auth.uid &&
@@ -92,8 +91,7 @@ service cloud.firestore {
     }
 
     function isValidWithdrawal(data) {
-      return data.keys().hasAll(['id', 'userId', 'userName', 'amount', 'method', 'details', 'status', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 &&
+      return data.keys().hasAll(['userId', 'userName', 'amount', 'method', 'details', 'status', 'createdAt']) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.userName is string && data.userName.size() > 0 &&
              data.amount is number && data.amount >= 1000 &&
