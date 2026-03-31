@@ -251,10 +251,30 @@ const Navbar = () => {
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
   
+  useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.error('AdSense error:', e);
+    }
+  }, []);
+
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
+
   return (
-    <div className="my-8 flex justify-center">
-      <ins className="adsbygoogle"
-           style={{ display: 'block' }}
+    <div className={cn(
+      "my-8 flex justify-center overflow-hidden relative",
+      position === 'sidebar' ? "min-h-[250px]" : "min-h-[90px]"
+    )}>
+      {isDev && (
+        <div className="absolute inset-0 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400 z-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest mb-1">Ad Space ({position})</span>
+          <span className="text-[8px] opacity-60">{publisherId}</span>
+        </div>
+      )}
+      <ins className="adsbygoogle relative z-10"
+           style={{ display: 'block', width: '100%' }}
            data-ad-client={publisherId}
            data-ad-slot="auto"
            data-ad-format="auto"
