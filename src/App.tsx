@@ -59,6 +59,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
+import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus } from './services/emailService';
 import { cn } from './lib/utils';
 
 // --- Types ---
@@ -101,6 +102,16 @@ interface WithdrawalRequest {
 interface PlatformSettings {
   coinValuePerView: number;
   minWithdrawal: number;
+}
+
+interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  content: string;
+  createdAt: any;
 }
 
 // --- Error Handling ---
@@ -146,6 +157,144 @@ const useAuth = () => {
 };
 
 // --- Components ---
+
+const Comments = ({ postId }: { postId: string }) => {
+  const { user } = useAuth();
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'posts', postId, 'comments'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `posts/${postId}/comments`));
+
+    return () => unsubscribe();
+  }, [postId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newComment.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'posts', postId, 'comments'), {
+        postId,
+        userId: user.uid,
+        userName: user.displayName,
+        userPhoto: user.photoURL || '',
+        content: newComment.trim(),
+        createdAt: serverTimestamp()
+      });
+      setNewComment('');
+      toast.success('Comment added!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `posts/${postId}/comments`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (commentId: string) => {
+    if (!window.confirm('Delete this comment?')) return;
+    try {
+      await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
+      toast.success('Comment deleted');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `posts/${postId}/comments/${commentId}`);
+    }
+  };
+
+  return (
+    <div className="mt-12 pt-12 border-t border-gray-100">
+      <h3 className="text-2xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+        <MessageSquare className="w-6 h-6 text-orange-500" />
+        Comments ({comments.length})
+      </h3>
+
+      {user ? (
+        <form onSubmit={handleSubmit} className="mb-12">
+          <div className="flex gap-4">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-5 h-5 text-orange-600" />
+              )}
+            </div>
+            <div className="flex-1 space-y-4">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Share your thoughts..."
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none min-h-[100px] resize-none transition-all"
+                maxLength={1000}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !newComment.trim()}
+                  className="px-6 py-2 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSubmitting ? 'Posting...' : 'Post Comment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="p-8 bg-gray-50 rounded-3xl text-center mb-12">
+          <p className="text-gray-600 mb-4">Please sign in to leave a comment.</p>
+          <Link to="/login" className="inline-block px-6 py-2 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all">
+            Sign In
+          </Link>
+        </div>
+      )}
+
+      <div className="space-y-8">
+        {comments.map((comment) => (
+          <div key={comment.id} className="group flex gap-4">
+            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              {comment.userPhoto ? (
+                <img src={comment.userPhoto} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900 text-sm">{comment.userName}</span>
+                  <span className="text-xs text-gray-400">
+                    {comment.createdAt?.toDate ? format(comment.createdAt.toDate(), 'MMM d, h:mm a') : 'Just now'}
+                  </span>
+                </div>
+                {(user?.role === 'admin' || user?.uid === comment.userId) && (
+                  <button
+                    onClick={() => handleDelete(comment.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <p className="text-gray-700 leading-relaxed">{comment.content}</p>
+            </div>
+          </div>
+        ))}
+        {comments.length === 0 && (
+          <div className="text-center py-12 text-gray-400">
+            <p>No comments yet. Be the first to share your thoughts!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -500,6 +649,8 @@ const PostView = () => {
         </div>
         
         <AdBanner position="inline" />
+
+        <Comments postId={post.id} />
       </motion.div>
     </div>
   );
@@ -554,6 +705,15 @@ const Dashboard = () => {
 
       await updateDoc(doc(db, 'users', user.uid), {
         coins: 0
+      });
+
+      // Notify Admin
+      notifyAdminNewWithdrawal({
+        userName: user.displayName,
+        userEmail: user.email,
+        amount,
+        method: withdrawForm.method,
+        details: withdrawForm.details
       });
 
       toast.success('Withdrawal request submitted!');
@@ -854,8 +1014,33 @@ const AdminPanel = () => {
   };
 
   const handleWithdrawalAction = async (id: string, status: 'approved' | 'cancelled') => {
-    await updateDoc(doc(db, 'withdrawals', id), { status });
-    toast.success(`Withdrawal ${status}!`);
+    try {
+      const withdrawalRef = doc(db, 'withdrawals', id);
+      const withdrawalSnap = await getDoc(withdrawalRef);
+      
+      if (withdrawalSnap.exists()) {
+        const withdrawalData = withdrawalSnap.data();
+        await updateDoc(withdrawalRef, { status });
+        
+        // Get user email to notify
+        const userRef = doc(db, 'users', withdrawalData.userId);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          notifyUserWithdrawalStatus({
+            userEmail: userData.email,
+            userName: userData.displayName,
+            amount: withdrawalData.amount,
+            status: status === 'approved' ? 'approved' : 'rejected'
+          });
+        }
+      }
+      toast.success(`Withdrawal ${status}!`);
+    } catch (error) {
+      toast.error('Failed to update withdrawal status');
+      console.error(error);
+    }
   };
 
   const updateSettings = async (e: React.FormEvent<HTMLFormElement>) => {

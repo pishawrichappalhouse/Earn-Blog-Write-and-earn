@@ -59,11 +59,27 @@
         "minWithdrawal": { "type": "number", "description": "Minimum coins required for withdrawal" }
       },
       "required": ["coinValuePerView", "minWithdrawal"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on a blog post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "postId", "userId", "userName", "content", "createdAt"]
     }
   },
   "firestore": {
     "/users/{uid}": { "schema": "User", "description": "User profiles" },
     "/posts/{postId}": { "schema": "BlogPost", "description": "Blog posts" },
+    "/posts/{postId}/comments/{commentId}": { "schema": "Comment", "description": "Comments on a blog post" },
     "/withdrawals/{requestId}": { "schema": "WithdrawalRequest", "description": "Withdrawal requests" },
     "/settings/global": { "schema": "PlatformSettings", "description": "Global platform settings" }
   }

@@ -49,6 +49,17 @@ service cloud.firestore {
     //   - coinValuePerView: number (required)
     //   - minWithdrawal: number (required)
     //
+    // Collection: comments (subcollection of posts)
+    // Document ID: {commentId}
+    // Fields:
+    //   - id: string (required, immutable)
+    //   - postId: string (required, immutable)
+    //   - userId: string (required, immutable)
+    //   - userName: string (required)
+    //   - userPhoto: string (optional)
+    //   - content: string (required, min 1, max 1000)
+    //   - createdAt: timestamp (required, immutable)
+    //
     // ===============================================================
 
     // Helper Functions
@@ -101,6 +112,15 @@ service cloud.firestore {
              (data.createdAt is timestamp || data.createdAt == request.time);
     }
 
+    function isValidComment(data) {
+      return data.keys().hasAll(['postId', 'userId', 'userName', 'content', 'createdAt']) &&
+             data.postId is string && data.postId.size() > 0 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() > 0 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 1000 &&
+             (data.createdAt is timestamp || data.createdAt == request.time);
+    }
+
     // Rules for User Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -132,6 +152,14 @@ service cloud.firestore {
         request.resource.data.views == resource.data.views + 1
       );
       allow delete: if isAdmin() || isOwner(resource.data.authorId);
+
+      // Rules for Comments Subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && isValidComment(request.resource.data);
+        allow update: if false; // Comments are immutable for now
+        allow delete: if isAdmin() || isOwner(resource.data.userId);
+      }
     }
 
     // Rules for Withdrawals Collection
