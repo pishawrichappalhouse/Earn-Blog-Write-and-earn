@@ -250,13 +250,16 @@ const Navbar = () => {
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
+  const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
-    try {
-      // @ts-ignore
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.error('AdSense error:', e);
+    if (adRef.current && !adRef.current.getAttribute('data-adsbygoogle-status')) {
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error('AdSense error:', e);
+      }
     }
   }, []);
 
@@ -273,7 +276,8 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
           <span className="text-[8px] opacity-60">{publisherId}</span>
         </div>
       )}
-      <ins className="adsbygoogle relative z-10"
+      <ins ref={adRef}
+           className="adsbygoogle relative z-10"
            style={{ display: 'block', width: '100%' }}
            data-ad-client={publisherId}
            data-ad-slot="auto"
