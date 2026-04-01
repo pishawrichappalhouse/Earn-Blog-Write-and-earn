@@ -558,19 +558,36 @@ const pushedElements = new WeakSet<HTMLElement>();
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
+  const slotId = import.meta.env.VITE_ADSENSE_SLOT_ID || 'auto';
   const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
-    if (adRef.current && !pushedElements.has(adRef.current) && !adRef.current.hasAttribute('data-adsbygoogle-status')) {
-      pushedElements.add(adRef.current);
+    // In a SPA with React StrictMode, components mount twice in development.
+    // This can cause multiple adsbygoogle.push() calls for the same slot,
+    // leading to the "All 'ins' elements... already have ads in them" error.
+    // Using a timeout that is cleared on unmount ensures we only push once
+    // when the component is actually staying in the DOM.
+    const timeoutId = setTimeout(() => {
       try {
-        // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        if (adRef.current && 
+            !pushedElements.has(adRef.current) && 
+            !adRef.current.hasAttribute('data-adsbygoogle-status') && 
+            adRef.current.innerHTML === '') {
+          
+          pushedElements.add(adRef.current);
+          // @ts-ignore
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        }
       } catch (e) {
-        console.error('AdSense error:', e);
+        // Silently catch common AdSense race condition errors
+        if (e instanceof Error && !e.message.includes('already have ads')) {
+          console.error('AdSense error:', e);
+        }
       }
-    }
-  }, []);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [position]);
 
   const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
 
@@ -589,7 +606,7 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
            className="adsbygoogle relative z-10"
            style={{ display: 'block', width: '100%' }}
            data-ad-client={publisherId}
-           data-ad-slot="auto"
+           data-ad-slot={slotId}
            data-ad-format="auto"
            data-full-width-responsive="true"></ins>
     </div>
