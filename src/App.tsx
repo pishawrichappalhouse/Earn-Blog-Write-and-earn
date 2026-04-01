@@ -131,6 +131,16 @@ interface Comment {
   createdAt: any;
 }
 
+interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'withdrawal_approved' | 'withdrawal_cancelled' | 'post_approved' | 'post_rejected';
+  read: boolean;
+  createdAt: any;
+}
+
 // --- Error Handling ---
 
 enum OperationType {
@@ -313,17 +323,79 @@ const Comments = ({ postId }: { postId: string }) => {
   );
 };
 
+const NotificationListener = () => {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', user.uid),
+      where('read', '==', false),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
+          const now = new Date().getTime();
+          const createdAt = notification.createdAt?.toMillis?.() || now;
+          
+          // Only show toast for very recent notifications (within last 30 seconds)
+          if (now - createdAt < 30000) {
+            toast.success(notification.title, {
+              description: notification.message,
+              duration: 10000,
+              action: {
+                label: 'Mark as Read',
+                onClick: () => updateDoc(doc(db, 'notifications', change.doc.id), { read: true })
+              }
+            });
+          }
+        }
+      });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'notifications'));
+
+    return () => unsubscribe();
+  }, [user]);
+
+  return null;
+};
+
 const Navbar = () => {
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      const q = query(collection(db, 'posts'), where('status', '==', 'pending'));
+      const qPosts = query(collection(db, 'posts'), where('status', '==', 'pending'));
+      const qWithdrawals = query(collection(db, 'withdrawals'), where('status', '==', 'pending'));
+      
+      const unsubPosts = onSnapshot(qPosts, (snap) => {
+        const postsCount = snap.size;
+        const unsubWithdrawals = onSnapshot(qWithdrawals, (snapW) => {
+          setPendingCount(postsCount + snapW.size);
+        });
+        return () => unsubWithdrawals();
+      });
+      return () => unsubPosts();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', user.uid),
+        where('read', '==', false)
+      );
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        setPendingCount(snapshot.size);
+        setUnreadNotifications(snapshot.size);
       });
       return () => unsubscribe();
     }
@@ -388,6 +460,22 @@ const Navbar = () => {
                     <p className="text-[10px] text-orange-500 font-bold mt-1">{user.coins.toFixed(0)} Coins</p>
                   </div>
                 </Link>
+
+                <div className="relative">
+                  <Link 
+                    to="/dashboard" 
+                    className="p-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center"
+                    title="Notifications"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadNotifications > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0F172A]">
+                        {unreadNotifications}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+
                 {user.role === 'admin' && (
                   <Link 
                     to="/admin" 
@@ -1053,19 +1141,19 @@ const PostView = () => {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data() as BlogPost;
-          const currentUserId = auth.currentUser?.uid;
+          
+          // Only count views for approved posts
+          if (data.status !== 'approved') return;
           
           // Increment views
           await updateDoc(docRef, { views: increment(1) });
           
-          // Award coins if viewer is not the author
-          if (currentUserId && currentUserId !== data.authorId) {
-            const authorRef = doc(db, 'users', data.authorId);
-            await updateDoc(authorRef, { 
-              coins: increment(settings.coinValuePerView),
-              totalEarned: increment(settings.coinValuePerView)
-            });
-          }
+          // Award coins to the author for every view
+          const authorRef = doc(db, 'users', data.authorId);
+          await updateDoc(authorRef, { 
+            coins: increment(settings.coinValuePerView),
+            totalEarned: increment(settings.coinValuePerView)
+          });
         }
       } catch (error) {
         console.error('Failed to increment views:', error);
@@ -1631,8 +1719,29 @@ const AdminPanel = () => {
   const { userGrowthData, payoutData } = getChartData();
 
   const handlePostAction = async (id: string, status: 'approved' | 'rejected') => {
-    await updateDoc(doc(db, 'posts', id), { status });
-    toast.success(`Post ${status}!`);
+    try {
+      const postRef = doc(db, 'posts', id);
+      const postSnap = await getDoc(postRef);
+      if (!postSnap.exists()) return;
+      const postData = postSnap.data();
+
+      await updateDoc(postRef, { status });
+      
+      // Add Notification
+      await addDoc(collection(db, 'notifications'), {
+        userId: postData.authorId,
+        title: `Story ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+        message: status === 'approved' ? `Your story "${postData.title}" has been published!` : `Your story "${postData.title}" was rejected.`,
+        type: status === 'approved' ? 'post_approved' : 'post_rejected',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.success(`Post ${status}!`);
+    } catch (error) {
+      toast.error('Failed to update post status');
+      console.error(error);
+    }
   };
 
   const handleWithdrawalAction = async (id: string, status: 'approved' | 'cancelled') => {
@@ -1682,6 +1791,16 @@ const AdminPanel = () => {
             amount: withdrawalData.amount,
             status: finalStatus,
             rejectionReason: status === 'cancelled' ? rejectionReason : undefined
+          });
+
+          // Add Notification
+          await addDoc(collection(db, 'notifications'), {
+            userId: withdrawalData.userId,
+            title: `Withdrawal ${status === 'approved' ? 'Approved' : 'Cancelled'}`,
+            message: status === 'approved' ? `Your withdrawal of ${withdrawalData.amount} coins has been approved!` : `Your withdrawal of ${withdrawalData.amount} coins was cancelled. Reason: ${rejectionReason}`,
+            type: status === 'approved' ? 'withdrawal_approved' : 'withdrawal_cancelled',
+            read: false,
+            createdAt: serverTimestamp()
           });
         }
       }
@@ -2506,6 +2625,7 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
+        <NotificationListener />
         <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
           <Toaster position="top-center" richColors />
           <Navbar />

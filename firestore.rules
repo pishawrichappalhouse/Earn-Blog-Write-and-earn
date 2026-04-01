@@ -60,6 +60,16 @@ service cloud.firestore {
     //   - content: string (required, min 1, max 1000)
     //   - createdAt: timestamp (required, immutable)
     //
+    // Collection: notifications
+    // Document ID: {notificationId}
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - title: string (required)
+    //   - message: string (required)
+    //   - type: string (required, ['withdrawal_approved', 'withdrawal_cancelled', 'post_approved', 'post_rejected'])
+    //   - read: boolean (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
     // ===============================================================
 
     // Helper Functions
@@ -125,6 +135,16 @@ service cloud.firestore {
              (data.createdAt is timestamp || data.createdAt == request.time);
     }
 
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.title is string && data.title.size() > 0 &&
+             data.message is string && data.message.size() > 0 &&
+             data.type in ['withdrawal_approved', 'withdrawal_cancelled', 'post_approved', 'post_rejected'] &&
+             data.read is bool &&
+             (data.createdAt is timestamp || data.createdAt == request.time);
+    }
+
     // Rules for User Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -180,6 +200,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated(); // Allow first user to bootstrap
       allow update: if isAdmin();
+    }
+
+    // Rules for Notifications Collection
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAdmin();
+      allow update: if isOwner(resource.data.userId) && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
   }
 }

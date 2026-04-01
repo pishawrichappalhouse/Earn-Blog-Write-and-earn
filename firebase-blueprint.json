@@ -74,6 +74,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "postId", "userId", "userName", "content", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["withdrawal_approved", "withdrawal_cancelled", "post_approved", "post_rejected"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
     }
   },
   "firestore": {
@@ -81,6 +96,7 @@
     "/posts/{postId}": { "schema": "BlogPost", "description": "Blog posts" },
     "/posts/{postId}/comments/{commentId}": { "schema": "Comment", "description": "Comments on a blog post" },
     "/withdrawals/{requestId}": { "schema": "WithdrawalRequest", "description": "Withdrawal requests" },
-    "/settings/global": { "schema": "PlatformSettings", "description": "Global platform settings" }
+    "/settings/global": { "schema": "PlatformSettings", "description": "Global platform settings" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" }
   }
 }
