@@ -300,7 +300,18 @@ const Comments = ({ postId }: { postId: string }) => {
 const Navbar = () => {
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      const q = query(collection(db, 'posts'), where('status', '==', 'pending'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setPendingCount(snapshot.size);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -361,6 +372,21 @@ const Navbar = () => {
                     <p className="text-[10px] text-orange-500 font-bold mt-1">{user.coins.toFixed(0)} Coins</p>
                   </div>
                 </Link>
+                {user.role === 'admin' && (
+                  <Link 
+                    to="/admin" 
+                    className="p-2.5 bg-purple-600/20 text-purple-400 rounded-xl hover:bg-purple-600/30 transition-all border border-purple-500/30 flex items-center gap-2 relative"
+                    title="Admin Panel"
+                  >
+                    <Shield className="w-5 h-5" />
+                    <span className="text-xs font-bold hidden xl:block">Admin</span>
+                    {pendingCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0F172A] animate-pulse">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                   <LogOut className="w-5 h-5" />
                 </button>
@@ -401,6 +427,27 @@ const Navbar = () => {
               
               {user ? (
                 <div className="space-y-4 pt-4 border-t border-white/10">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden">
+                      {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-gray-400 m-3" />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-white">{user.displayName}</p>
+                      <p className="text-sm text-orange-500 font-bold">{user.coins.toFixed(0)} Coins</p>
+                    </div>
+                  </div>
+                  {user.role === 'admin' && (
+                    <Link to="/admin" className="flex items-center justify-between p-4 bg-purple-600/20 rounded-2xl text-purple-400 font-bold border border-purple-500/30">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5" /> Admin Panel
+                      </div>
+                      {pendingCount > 0 && (
+                        <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">
+                          {pendingCount} Pending
+                        </span>
+                      )}
+                    </Link>
+                  )}
                   <Link to="/dashboard" className="block text-lg font-bold text-white">Dashboard</Link>
                   <Link to="/create" className="block text-lg font-bold text-orange-500">Create Post</Link>
                   <button onClick={handleLogout} className="block text-lg font-bold text-red-500">Logout</button>
@@ -1496,14 +1543,14 @@ const AdminPanel = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-12">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
           </h1>
           <p className="text-sm text-gray-500">Manage posts, withdrawals, and platform settings.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <button 
             onClick={seedData}
             className="flex items-center gap-2 px-6 py-3 bg-orange-100 text-orange-600 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-all border border-orange-200"
@@ -1511,23 +1558,23 @@ const AdminPanel = () => {
             <Database className="w-4 h-4" /> Seed Sample Data
           </button>
           <div className="flex bg-gray-100 p-1 rounded-2xl overflow-x-auto">
-          {['posts', 'withdrawals', 'users', 'settings'].map(tab => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={cn(
-                "px-6 py-2 rounded-xl text-sm font-bold transition-all capitalize whitespace-nowrap",
-                activeTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
-              )}
-            >
-              {tab}
-            </button>
-          ))}
+            {['posts', 'withdrawals', 'users', 'settings'].map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={cn(
+                  "px-6 py-2 rounded-xl text-sm font-bold transition-all capitalize whitespace-nowrap",
+                  activeTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-purple-600 p-8 rounded-[32px] text-white shadow-xl shadow-purple-100">
           <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Users</p>
           <p className="text-4xl font-bold">{platformStats.totalUsers}</p>
@@ -1861,6 +1908,86 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 // --- App ---
 
+const CategoryView = () => {
+  const { category } = useParams();
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'posts'),
+      where('category', '==', category),
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `posts/${category}`));
+
+    return () => unsubscribe();
+  }, [category]);
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="flex items-center gap-4 mb-12">
+        <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">{category} Stories</h1>
+        <div className="h-[2px] bg-gray-100 flex-1" />
+        <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{posts.length} Articles</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {posts.map(post => (
+          <motion.div 
+            key={post.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500"
+          >
+            <Link to={`/post/${post.id}`} className="block">
+              <div className="aspect-[16/10] overflow-hidden relative">
+                <img 
+                  src={post.thumbnail || `https://picsum.photos/seed/${post.id}/800/500`} 
+                  alt={post.title} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm">
+                    {post.category}
+                  </span>
+                </div>
+              </div>
+              <div className="p-8 space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
+                  {post.title}
+                </h3>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{post.authorName}</span>
+                  <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <Eye className="w-3 h-3" /> {post.views}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+      {posts.length === 0 && (
+        <div className="text-center py-20 bg-white rounded-[40px] border border-dashed border-gray-200">
+          <p className="text-gray-400 font-medium">No stories found in this category yet.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   return (
     <Router>
@@ -1871,6 +1998,7 @@ export default function App() {
           <main>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/category/:category" element={<CategoryView />} />
               <Route path="/post/:id" element={<PostView />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/create" element={<Editor />} />
