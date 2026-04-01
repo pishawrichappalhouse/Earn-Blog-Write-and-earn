@@ -28,7 +28,8 @@ import {
   Wallet,
   AlertCircle,
   Check,
-  Ban
+  Ban,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -630,6 +631,7 @@ const Home = () => {
   const featuredPosts = posts.slice(0, 3);
   const latestPosts = posts.slice(3);
   const popularPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
+  const categories = ['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'];
 
   if (loading) {
     return (
@@ -642,6 +644,19 @@ const Home = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <AdBanner position="top" />
+
+      {/* Category Navigation */}
+      <div className="flex items-center gap-4 overflow-x-auto pb-8 no-scrollbar">
+        {['All', ...categories].map((cat) => (
+          <Link
+            key={cat}
+            to={cat === 'All' ? '/' : `/category/${cat}`}
+            className="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-600 hover:border-orange-500 hover:text-orange-600 transition-all shadow-sm whitespace-nowrap"
+          >
+            {cat}
+          </Link>
+        ))}
+      </div>
 
       {/* Featured Grid */}
       <section className="mb-20">
@@ -773,11 +788,69 @@ const Home = () => {
                 </div>
               </motion.article>
             ))}
+            {latestPosts.length === 0 && (
+              <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
+                <p className="text-gray-400 font-medium">No more articles to show.</p>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="lg:col-span-4">
           <Sidebar popularPosts={popularPosts} />
+        </div>
+
+        {/* Category Sections */}
+        <div className="lg:col-span-12 space-y-24 mt-24">
+          {categories.map((category) => {
+            const categoryPosts = posts.filter(p => p.category === category).slice(0, 5);
+            if (categoryPosts.length === 0) return null;
+
+            return (
+              <section key={category} className="space-y-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">{category}</h2>
+                    <div className="h-[2px] bg-gray-100 flex-1" />
+                  </div>
+                  <Link to={`/category/${category}`} className="ml-6 text-sm font-bold text-orange-600 hover:text-orange-700 flex items-center gap-2 group">
+                    View All <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+                  {categoryPosts.map((post) => (
+                    <motion.div 
+                      key={post.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      className="group"
+                    >
+                      <Link to={`/post/${post.id}`} className="block space-y-4">
+                        <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-md">
+                          <img 
+                            src={post.thumbnail || `https://picsum.photos/seed/${category}/600/400`} 
+                            alt={post.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="font-bold text-gray-900 leading-snug line-clamp-2 group-hover:text-orange-600 transition-colors">
+                            {post.title}
+                          </h3>
+                          <p className="text-xs text-gray-400 font-medium">
+                            {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}
+                          </p>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1207,17 +1280,18 @@ const Editor = () => {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
+    const isAdmin = user.role === 'admin';
     try {
       await addDoc(collection(db, 'posts'), {
         ...form,
         authorId: user.uid,
         authorName: user.displayName,
         views: 0,
-        status: 'pending',
+        status: isAdmin ? 'approved' : 'pending',
         createdAt: serverTimestamp()
       });
-      toast.success('Story submitted for approval!');
-      navigate('/dashboard');
+      toast.success(isAdmin ? 'Story published successfully!' : 'Story submitted for approval!');
+      navigate(isAdmin ? '/' : '/dashboard');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'posts');
     } finally {
@@ -1235,7 +1309,7 @@ const Editor = () => {
             disabled={loading}
             className="bg-orange-600 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 disabled:opacity-50"
           >
-            {loading ? 'Publishing...' : 'Submit Story'}
+            {loading ? 'Publishing...' : (user?.role === 'admin' ? 'Publish Now' : 'Submit Story')}
           </button>
         </div>
 
@@ -1248,7 +1322,7 @@ const Editor = () => {
                 onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
               >
-                {['Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'].map(cat => (
+                {['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'].map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
@@ -1387,15 +1461,56 @@ const AdminPanel = () => {
     toast.success('Settings updated!');
   };
 
+  const seedData = async () => {
+    const categories = ['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'];
+    const storiesPerCategory = 5;
+    const totalStories = categories.length * storiesPerCategory;
+    
+    toast.loading(`Seeding ${totalStories} stories...`, { id: 'seed' });
+
+    try {
+      for (const category of categories) {
+        for (let i = 1; i <= storiesPerCategory; i++) {
+          const postData = {
+            title: `${category} Story #${i}: The Future of ${category} in 2026`,
+            content: `This is a comprehensive guide about ${category}. In this article, we explore the latest trends and developments in the field of ${category}. Whether you are a beginner or an expert, this story provides valuable insights into how ${category} is shaping our world today. We will cover key topics, expert opinions, and practical tips to help you stay ahead in the ${category} landscape. Stay tuned for more updates and deep dives into the most exciting aspects of ${category}.`,
+            category: category,
+            thumbnail: `https://picsum.photos/seed/${category}${i}/1200/800`,
+            authorId: user?.uid || 'admin',
+            authorName: user?.displayName || 'Admin',
+            status: 'approved',
+            views: Math.floor(Math.random() * 5000),
+            createdAt: serverTimestamp(),
+          };
+          await addDoc(collection(db, 'posts'), postData);
+        }
+      }
+      toast.success('Successfully seeded 30 stories!', { id: 'seed' });
+    } catch (error) {
+      toast.error('Failed to seed data', { id: 'seed' });
+      console.error(error);
+    }
+  };
+
   if (user?.role !== 'admin') return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
-        </h1>
-        <div className="flex bg-gray-100 p-1 rounded-2xl overflow-x-auto">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
+          </h1>
+          <p className="text-sm text-gray-500">Manage posts, withdrawals, and platform settings.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={seedData}
+            className="flex items-center gap-2 px-6 py-3 bg-orange-100 text-orange-600 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-all border border-orange-200"
+          >
+            <Database className="w-4 h-4" /> Seed Sample Data
+          </button>
+          <div className="flex bg-gray-100 p-1 rounded-2xl overflow-x-auto">
           {['posts', 'withdrawals', 'users', 'settings'].map(tab => (
             <button 
               key={tab}
@@ -1410,8 +1525,9 @@ const AdminPanel = () => {
           ))}
         </div>
       </div>
+    </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-purple-600 p-8 rounded-[32px] text-white shadow-xl shadow-purple-100">
           <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Users</p>
           <p className="text-4xl font-bold">{platformStats.totalUsers}</p>
