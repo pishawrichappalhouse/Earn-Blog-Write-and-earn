@@ -307,55 +307,67 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <nav className="sticky top-0 z-50 bg-[#0F172A] text-white border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-200">
-                B
+        <div className="flex justify-between h-20 items-center">
+          <div className="flex items-center gap-12">
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-12 h-12 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-orange-900/20 group-hover:scale-105 transition-transform duration-300">
+                E
               </div>
-              <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:block">BlogEarn</span>
+              <div className="flex flex-col">
+                <span className="text-2xl font-extrabold tracking-tight text-white leading-none">EarnBlog</span>
+                <span className="text-[10px] text-orange-500 font-bold uppercase tracking-[0.2em] mt-1">Premium News</span>
+              </div>
             </Link>
             
-            <div className="hidden md:flex items-center gap-6">
-              <Link to="/" className="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">Explore</Link>
-              {user?.role === 'admin' && (
-                <Link to="/admin" className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1">
-                  <Shield className="w-4 h-4" /> Admin
-                </Link>
-              )}
+            <div className="hidden lg:flex items-center gap-8">
+              <Link to="/" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Home</Link>
+              <Link to="/category/tech" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Tech</Link>
+              <Link to="/category/earning" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Earning</Link>
+              <Link to="/category/news" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">News</Link>
+              <Link to="/about" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">About</Link>
+              <Link to="/contact" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Contact</Link>
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6">
+            <div className="relative group">
+              <input 
+                type="text" 
+                placeholder="Search articles..." 
+                className="bg-white/5 border border-white/10 rounded-full px-5 py-2 text-sm w-48 focus:w-64 focus:bg-white/10 focus:outline-none transition-all duration-300 placeholder:text-gray-500"
+              />
+              <Search className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2" />
+            </div>
+
             {user ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-5">
                 <Link 
                   to="/create" 
-                  className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-orange-700 transition-all shadow-md shadow-orange-100"
+                  className="bg-orange-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2"
                 >
-                  <PenSquare className="w-4 h-4" />
-                  Write
+                  <Plus className="w-4 h-4" />
+                  Create
                 </Link>
-                <div className="h-8 w-[1px] bg-gray-200 mx-2" />
-                <Link to="/dashboard" className="flex items-center gap-2 group">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all">
-                    {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-4 h-4" /></div>}
+                <div className="h-8 w-[1px] bg-white/10 mx-1" />
+                <Link to="/dashboard" className="flex items-center gap-3 group">
+                  <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner">
+                    {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
                   </div>
-                  <div className="hidden lg:block">
-                    <p className="text-xs font-bold text-gray-900 leading-none">{user.displayName}</p>
-                    <p className="text-[10px] text-orange-600 font-medium">{user.coins.toFixed(0)} Coins</p>
+                  <div className="hidden xl:block">
+                    <p className="text-xs font-bold text-white leading-none">{user.displayName}</p>
+                    <p className="text-[10px] text-orange-500 font-bold mt-1">{user.coins.toFixed(0)} Coins</p>
                   </div>
                 </Link>
-                <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                   <LogOut className="w-5 h-5" />
                 </button>
               </div>
             ) : (
               <Link 
                 to="/login" 
-                className="bg-gray-900 text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all"
+                className="bg-white text-gray-900 px-8 py-2.5 rounded-full text-sm font-bold hover:bg-gray-100 transition-all shadow-lg shadow-white/5"
               >
                 Sign In
               </Link>
@@ -363,7 +375,7 @@ const Navbar = () => {
           </div>
 
           <div className="md:hidden flex items-center gap-4">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-600">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-300">
               {isMenuOpen ? <X /> : <Menu />}
             </button>
           </div>
@@ -373,27 +385,109 @@ const Navbar = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="md:hidden bg-[#0F172A] border-b border-white/10 overflow-hidden"
           >
-            <div className="px-4 py-6 space-y-4">
-              <Link to="/" className="block text-lg font-medium text-gray-900">Explore</Link>
+            <div className="px-4 py-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <Link to="/" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Home</Link>
+                <Link to="/category/tech" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Tech</Link>
+                <Link to="/category/earning" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Earning</Link>
+                <Link to="/category/news" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">News</Link>
+              </div>
+              
               {user ? (
-                <>
-                  <Link to="/dashboard" className="block text-lg font-medium text-gray-900">Dashboard</Link>
-                  <Link to="/create" className="block text-lg font-medium text-orange-600">Write a Story</Link>
-                  <button onClick={handleLogout} className="block text-lg font-medium text-red-600">Logout</button>
-                </>
+                <div className="space-y-4 pt-4 border-t border-white/10">
+                  <Link to="/dashboard" className="block text-lg font-bold text-white">Dashboard</Link>
+                  <Link to="/create" className="block text-lg font-bold text-orange-500">Create Post</Link>
+                  <button onClick={handleLogout} className="block text-lg font-bold text-red-500">Logout</button>
+                </div>
               ) : (
-                <Link to="/login" className="block text-lg font-medium text-orange-600">Sign In</Link>
+                <Link to="/login" className="block w-full py-4 bg-orange-600 rounded-2xl text-center font-bold text-white">Sign In</Link>
               )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </nav>
+  );
+};
+
+const Footer = () => {
+  return (
+    <footer className="bg-[#0F172A] text-white pt-20 pb-10 border-t border-white/10 mt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+          <div className="space-y-6">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
+                E
+              </div>
+              <span className="text-xl font-bold tracking-tight text-white">EarnBlog</span>
+            </Link>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              The world's leading platform for writers and readers. Share your stories, engage with the community, and earn rewards for your creativity.
+            </p>
+            <div className="flex items-center gap-4">
+              {['Twitter', 'Facebook', 'Instagram', 'LinkedIn'].map(social => (
+                <a key={social} href="#" className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-orange-600 transition-colors">
+                  <span className="sr-only">{social}</span>
+                  <div className="w-4 h-4 bg-gray-400 rounded-sm" />
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-bold mb-6">Quick Links</h4>
+            <ul className="space-y-4">
+              <li><Link to="/" className="text-gray-400 hover:text-white transition-colors text-sm">Home</Link></li>
+              <li><Link to="/about" className="text-gray-400 hover:text-white transition-colors text-sm">About Us</Link></li>
+              <li><Link to="/contact" className="text-gray-400 hover:text-white transition-colors text-sm">Contact Us</Link></li>
+              <li><Link to="/create" className="text-gray-400 hover:text-white transition-colors text-sm">Write for Us</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-bold mb-6">Legal</h4>
+            <ul className="space-y-4">
+              <li><Link to="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">Terms & Conditions</Link></li>
+              <li><Link to="/disclaimer" className="text-gray-400 hover:text-white transition-colors text-sm">Disclaimer</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-bold mb-6">Newsletter</h4>
+            <p className="text-gray-400 text-sm mb-6">Get the latest stories and earning tips delivered to your inbox.</p>
+            <form className="flex gap-2">
+              <input 
+                type="email" 
+                placeholder="Email address" 
+                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm flex-1 focus:outline-none focus:border-orange-500"
+              />
+              <button className="bg-orange-600 p-2 rounded-xl hover:bg-orange-700 transition-colors">
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <AdBanner position="footer" />
+
+        <div className="pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
+          <p className="text-gray-500 text-xs">
+            © {new Date().getFullYear()} EarnBlog. All rights reserved. Professional Blogging Platform.
+          </p>
+          <div className="flex items-center gap-6 text-xs text-gray-500">
+            <span>Powered by AI Studio</span>
+            <span>AdSense Ready</span>
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 };
 
@@ -441,133 +535,339 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
 
 // --- Pages ---
 
+const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
+  const categories = ['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'];
+  
+  return (
+    <aside className="space-y-12">
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+          <Search className="w-5 h-5 text-orange-500" />
+          Search
+        </h3>
+        <div className="relative">
+          <input 
+            type="text" 
+            placeholder="Search articles..." 
+            className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+          />
+          <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors">
+            <Search className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <AdBanner position="sidebar" />
+
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-orange-500" />
+          Popular Posts
+        </h3>
+        <div className="space-y-6">
+          {popularPosts.map((post, index) => (
+            <Link key={post.id} to={`/post/${post.id}`} className="flex gap-4 group">
+              <span className="text-2xl font-black text-gray-100 group-hover:text-orange-100 transition-colors">0{index + 1}</span>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-gray-900 group-hover:text-orange-600 transition-colors line-clamp-2 leading-snug">
+                  {post.title}
+                </h4>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{post.category}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+          <Menu className="w-5 h-5 text-orange-500" />
+          Categories
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {categories.map(cat => (
+            <Link 
+              key={cat} 
+              to={`/category/${cat.toLowerCase()}`}
+              className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-bold hover:bg-orange-500 hover:text-white transition-all border border-gray-100"
+            >
+              {cat}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-8 rounded-3xl text-white shadow-xl shadow-orange-900/20">
+        <h3 className="text-xl font-bold mb-4">Write & Earn</h3>
+        <p className="text-orange-100 text-sm mb-6 leading-relaxed">Share your knowledge with our global community and earn coins for every view.</p>
+        <Link to="/create" className="block w-full py-3 bg-white text-orange-600 rounded-2xl text-center font-bold text-sm hover:bg-orange-50 transition-colors">
+          Start Writing
+        </Link>
+      </div>
+    </aside>
+  );
+};
+
 const Home = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const categories = ['All', 'Technology', 'Finance', 'Health', 'Travel', 'Food', 'Design', 'Marketing'];
 
   useEffect(() => {
-    let q = query(collection(db, 'posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'posts'), 
+      where('status', '==', 'approved'), 
+      orderBy('createdAt', 'desc')
+    );
     
-    if (selectedCategory !== 'All') {
-      q = query(collection(db, 'posts'), 
-        where('status', '==', 'approved'), 
-        where('category', '==', selectedCategory),
-        orderBy('createdAt', 'desc')
-      );
-    }
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
       setLoading(false);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
 
     return () => unsubscribe();
-  }, [selectedCategory]);
+  }, []);
+
+  const featuredPosts = posts.slice(0, 3);
+  const latestPosts = posts.slice(3);
+  const popularPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <AdBanner position="top" />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-8 space-y-12">
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Latest Stories</h2>
-            </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn(
-                    "px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                    selectedCategory === cat 
-                      ? "bg-orange-600 text-white shadow-lg shadow-orange-100" 
-                      : "bg-white text-gray-400 border border-gray-100 hover:border-orange-200 hover:text-orange-600"
-                  )}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+      {/* Featured Grid */}
+      <section className="mb-20">
+        <div className="flex items-center gap-4 mb-10">
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Featured Stories</h2>
+          <div className="h-[2px] bg-gray-100 flex-1" />
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {featuredPosts[0] && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:col-span-8 group"
+            >
+              <Link to={`/post/${featuredPosts[0].id}`} className="block relative aspect-[16/9] rounded-[40px] overflow-hidden shadow-2xl">
+                <img 
+                  src={featuredPosts[0].thumbnail || 'https://picsum.photos/seed/tech/1200/800'} 
+                  alt={featuredPosts[0].title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 p-10 md:p-16 space-y-4">
+                  <span className="px-4 py-1.5 bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
+                    {featuredPosts[0].category}
+                  </span>
+                  <h3 className="text-3xl md:text-5xl font-black text-white leading-tight max-w-2xl">
+                    {featuredPosts[0].title}
+                  </h3>
+                  <div className="flex items-center gap-4 text-gray-300 text-sm font-medium">
+                    <span>{featuredPosts[0].authorName}</span>
+                    <div className="w-1 h-1 bg-gray-500 rounded-full" />
+                    <span>{featuredPosts[0].createdAt?.toDate ? format(featuredPosts[0].createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</span>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          )}
+
+          <div className="lg:col-span-4 space-y-8">
+            {featuredPosts.slice(1).map((post) => (
+              <motion.div 
+                key={post.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="group"
+              >
+                <Link to={`/post/${post.id}`} className="block relative aspect-[4/3] rounded-[32px] overflow-hidden shadow-xl">
+                  <img 
+                    src={post.thumbnail || 'https://picsum.photos/seed/blog/800/600'} 
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent" />
+                  <div className="absolute bottom-0 left-0 p-8 space-y-3">
+                    <span className="px-3 py-1 bg-white/20 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest rounded-full">
+                      {post.category}
+                    </span>
+                    <h3 className="text-xl font-bold text-white leading-snug line-clamp-2">
+                      {post.title}
+                    </h3>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        {/* Latest Posts */}
+        <div className="lg:col-span-8 space-y-12">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Latest Articles</h2>
+            <div className="h-[2px] bg-gray-100 flex-1" />
           </div>
 
-          {loading ? (
-            <div className="space-y-8">
-              {[1, 2, 3].map(i => <div key={i} className="h-48 bg-gray-100 rounded-3xl animate-pulse" />)}
-            </div>
-          ) : (
-            <div className="space-y-12">
-              {posts.map((post, idx) => (
-                <motion.article 
-                  key={post.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="group grid grid-cols-1 md:grid-cols-12 gap-6 items-start"
-                >
-                  <div className="md:col-span-4">
-                    <Link to={`/post/${post.id}`} className="block aspect-[16/10] rounded-2xl overflow-hidden bg-gray-100">
-                      <img 
-                        src={post.thumbnail || `https://picsum.photos/seed/${post.id}/800/400`} 
-                        alt={post.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        referrerPolicy="no-referrer"
-                      />
-                    </Link>
+          <div className="space-y-10">
+            {latestPosts.map((post) => (
+              <motion.article 
+                key={post.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="flex flex-col md:flex-row gap-8 group"
+              >
+                <Link to={`/post/${post.id}`} className="md:w-72 aspect-[4/3] rounded-3xl overflow-hidden shadow-lg flex-shrink-0">
+                  <img 
+                    src={post.thumbnail || 'https://picsum.photos/seed/article/600/400'} 
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                </Link>
+                <div className="flex-1 space-y-4 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{post.category}</span>
+                    <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}
+                    </span>
                   </div>
-                  <div className="md:col-span-8 space-y-3">
-                    <div className="flex items-center gap-3 text-xs font-bold text-orange-600 uppercase tracking-widest">
-                      <span>{post.category}</span>
-                      <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                      <span className="text-gray-400">{post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</span>
-                    </div>
-                    <Link to={`/post/${post.id}`}>
-                      <h3 className="text-2xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
-                        {post.title}
-                      </h3>
-                    </Link>
-                    <p className="text-gray-500 line-clamp-2 text-sm leading-relaxed">
-                      {post.content}
-                    </p>
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-700">{post.authorName}</span>
+                  <Link to={`/post/${post.id}`}>
+                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-tight">
+                      {post.title}
+                    </h3>
+                  </Link>
+                  <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">
+                    {post.content.substring(0, 180)}...
+                  </p>
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                        {post.authorName[0]}
                       </div>
-                      <div className="flex items-center gap-4 text-gray-400">
-                        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter">
-                          <Eye className="w-3 h-3" /> {post.views}
-                        </div>
+                      <span className="text-xs font-bold text-gray-700">{post.authorName}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-gray-400">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                        <Eye className="w-3.5 h-3.5" /> {post.views}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                        <MessageSquare className="w-3.5 h-3.5" /> 12
                       </div>
                     </div>
                   </div>
-                </motion.article>
-              ))}
-              {posts.length === 0 && <p className="text-center text-gray-500 py-12">No stories found yet.</p>}
-            </div>
-          )}
+                </div>
+              </motion.article>
+            ))}
+          </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-12">
-          <div className="bg-orange-50 rounded-3xl p-8 border border-orange-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Earning Today</h3>
-            <p className="text-sm text-gray-600 mb-6">Write stories, get views, and earn coins. 1000 coins = Cash payout!</p>
-            <Link to="/create" className="flex items-center justify-center gap-2 w-full bg-orange-600 text-white py-3 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-200">
-              Start Writing <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <AdBanner position="sidebar" />
+        <div className="lg:col-span-4">
+          <Sidebar popularPosts={popularPosts} />
         </div>
       </div>
-      
-      <AdBanner position="footer" />
     </div>
   );
 };
+
+const About = () => (
+  <div className="max-w-4xl mx-auto px-4 py-20 prose prose-orange">
+    <h1 className="text-5xl font-black mb-10">About EarnBlog</h1>
+    <p className="text-xl text-gray-600 leading-relaxed">
+      EarnBlog is a premium blogging platform designed for the modern era of digital storytelling. We believe that every voice deserves to be heard and every creator deserves to be rewarded.
+    </p>
+    <img src="https://picsum.photos/seed/about/1200/600" alt="About Us" className="rounded-[40px] my-12 shadow-2xl" referrerPolicy="no-referrer" />
+    <h2>Our Mission</h2>
+    <p>
+      Our mission is to democratize the world of blogging by providing a high-quality, professional platform where writers can share their expertise and readers can find reliable, engaging content.
+    </p>
+    <h2>Why Choose Us?</h2>
+    <ul>
+      <li><strong>Professional Design:</strong> Your content looks premium from day one.</li>
+      <li><strong>Earn Rewards:</strong> Get paid for your creativity through our unique coin system.</li>
+      <li><strong>Global Community:</strong> Connect with readers and writers from around the world.</li>
+    </ul>
+  </div>
+);
+
+const Contact = () => (
+  <div className="max-w-7xl mx-auto px-4 py-20 grid grid-cols-1 lg:grid-cols-2 gap-20">
+    <div className="space-y-10">
+      <h1 className="text-5xl font-black">Get in Touch</h1>
+      <p className="text-xl text-gray-600 leading-relaxed">
+        Have a question, feedback, or just want to say hello? We'd love to hear from you. Our team is here to support your blogging journey.
+      </p>
+      <div className="space-y-6">
+        <div className="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
+          <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+            <Bell className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Us</p>
+            <p className="text-lg font-bold text-gray-900">support@earnblog.com</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
+          <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+            <History className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Call Us</p>
+            <p className="text-lg font-bold text-gray-900">+92 312 1130219</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100">
+      <form className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+            <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="John Doe" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
+            <input type="email" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="john@example.com" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Subject</label>
+          <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="How can we help?" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Message</label>
+          <textarea rows={6} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="Your message here..." />
+        </div>
+        <button className="w-full py-5 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/20">
+          Send Message
+        </button>
+      </form>
+    </div>
+  </div>
+);
+
+const LegalPage = ({ title, content }: { title: string, content: string }) => (
+  <div className="max-w-4xl mx-auto px-4 py-20 prose prose-orange">
+    <h1 className="text-5xl font-black mb-10">{title}</h1>
+    <div className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+      {content}
+    </div>
+  </div>
+);
 
 const PostView = () => {
   const { id } = useParams();
@@ -584,7 +884,6 @@ const PostView = () => {
           setPost({ id: docSnap.id, ...data });
           
           // Increment views and award coins
-          // Only if user is authenticated and not the author
           const currentUserId = auth.currentUser?.uid;
           if (currentUserId && currentUserId !== data.authorId) {
             await updateDoc(docRef, { views: increment(1) });
@@ -594,7 +893,6 @@ const PostView = () => {
               totalEarned: increment(settings.coinValuePerView)
             });
           } else if (!currentUserId) {
-            // Public view increment (allowed by rules without auth)
             await updateDoc(docRef, { views: increment(1) });
           }
         } else {
@@ -610,51 +908,84 @@ const PostView = () => {
   if (!post) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <AdBanner position="top" />
-      
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-8"
-      >
-        <div className="space-y-4 text-center">
-          <div className="inline-block px-4 py-1.5 bg-orange-50 text-orange-600 text-[10px] font-bold uppercase tracking-widest rounded-full">
-            {post.category}
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight leading-tight">
-            {post.title}
-          </h1>
-          <div className="flex items-center justify-center gap-4 pt-4">
-            <div className="flex items-center gap-3">
-              <div className="text-left">
-                <p className="text-sm font-bold text-gray-900">{post.authorName}</p>
-                <p className="text-xs text-gray-400">{post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div className="lg:col-span-8">
+          <AdBanner position="top" />
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-10"
+          >
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <span className="px-4 py-1.5 bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
+                  {post.category}
+                </span>
+                <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}
+                </span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight leading-tight">
+                {post.title}
+              </h1>
+              <div className="flex items-center gap-6 py-6 border-y border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-500">
+                    {post.authorName[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{post.authorName}</p>
+                    <p className="text-xs text-gray-400 font-medium">Author</p>
+                  </div>
+                </div>
+                <div className="h-10 w-[1px] bg-gray-100" />
+                <div className="flex items-center gap-4 text-gray-400">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                    <Eye className="w-4 h-4" /> {post.views} Views
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                    <MessageSquare className="w-4 h-4" /> 12 Comments
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="h-8 w-[1px] bg-gray-200" />
-            <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-widest">
-              <Eye className="w-4 h-4" /> {post.views} Views
+
+            {post.thumbnail && (
+              <div className="aspect-video rounded-[40px] overflow-hidden bg-gray-100 shadow-2xl">
+                <img src={post.thumbnail} alt={post.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              </div>
+            )}
+
+            <div className="prose prose-orange prose-xl max-w-none">
+              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">
+                {post.content}
+              </div>
             </div>
-          </div>
+            
+            <div className="flex items-center gap-4 py-10 border-t border-gray-100">
+              <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Share this story:</span>
+              <div className="flex gap-3">
+                {['Facebook', 'Twitter', 'LinkedIn', 'WhatsApp'].map(platform => (
+                  <button key={platform} className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-bold hover:bg-orange-500 hover:text-white transition-all border border-gray-100">
+                    {platform}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <AdBanner position="inline" />
+
+            <Comments postId={post.id} />
+          </motion.div>
         </div>
 
-        {post.thumbnail && (
-          <div className="aspect-video rounded-3xl overflow-hidden bg-gray-100 shadow-2xl">
-            <img src={post.thumbnail} alt={post.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-          </div>
-        )}
-
-        <div className="prose prose-orange max-w-none">
-          <div className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
-            {post.content}
-          </div>
+        <div className="lg:col-span-4">
+          <Sidebar popularPosts={[]} />
         </div>
-        
-        <AdBanner position="inline" />
-
-        <Comments postId={post.id} />
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -1418,7 +1749,7 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-[#FAFAFA] font-sans text-gray-900">
+        <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
           <Toaster position="top-center" richColors />
           <Navbar />
           <main>
@@ -1429,17 +1760,45 @@ export default function App() {
               <Route path="/create" element={<Editor />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/login" element={<Auth />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<LegalPage title="Privacy Policy" content={`
+Last updated: April 01, 2026
+
+At EarnBlog, we take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information.
+
+1. Information We Collect
+We collect information you provide directly to us, such as when you create an account, write a post, or contact us for support. This may include your name, email address, and payment information.
+
+2. How We Use Your Information
+We use your information to provide and improve our services, communicate with you, and ensure the security of our platform.
+
+3. Data Security
+We implement a variety of security measures to maintain the safety of your personal information. However, no method of transmission over the Internet is 100% secure.
+
+4. Third-Party Services
+We may use third-party services, such as Google AdSense, which may collect information about your visits to this and other websites.
+              `} />} />
+              <Route path="/terms" element={<LegalPage title="Terms & Conditions" content={`
+Last updated: April 01, 2026
+
+By using EarnBlog, you agree to comply with and be bound by the following terms and conditions.
+
+1. Content Ownership
+You retain ownership of the content you post on EarnBlog. However, by posting, you grant us a non-exclusive, royalty-free license to use, display, and distribute your content.
+
+2. Prohibited Content
+You may not post content that is illegal, offensive, or violates the rights of others. We reserve the right to remove any content that violates these terms.
+
+3. Earnings and Payouts
+Earnings are based on views and other engagement metrics. Payouts are subject to our verification process and minimum threshold requirements.
+
+4. Limitation of Liability
+EarnBlog is provided "as is" without any warranties. We are not liable for any damages arising from your use of the platform.
+              `} />} />
             </Routes>
           </main>
-          <footer className="bg-white border-t border-gray-100 py-12 mt-24">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <div className="mb-6">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Contact Support</p>
-                <p className="text-lg font-bold text-gray-900">+923121130219</p>
-              </div>
-              <p className="text-xs text-gray-400">© 2026 BlogEarn Inc. All rights reserved.</p>
-            </div>
-          </footer>
+          <Footer />
         </div>
       </AuthProvider>
     </Router>
