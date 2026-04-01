@@ -69,6 +69,7 @@ import {
   addDoc, 
   orderBy, 
   increment,
+  limit,
   getDocs,
   deleteDoc,
   serverTimestamp,
@@ -413,19 +414,20 @@ const Navbar = () => {
           <div className="flex items-center gap-12">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="w-12 h-12 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-orange-900/20 group-hover:scale-105 transition-transform duration-300">
-                E
+                B
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-extrabold tracking-tight text-white leading-none">EarnBlog</span>
-                <span className="text-[10px] text-orange-500 font-bold uppercase tracking-[0.2em] mt-1">Premium News</span>
+                <span className="text-2xl font-extrabold tracking-tight text-white leading-none">BloggerPro</span>
+                <span className="text-[10px] text-orange-500 font-bold uppercase tracking-[0.2em] mt-1">Insights & Knowledge</span>
               </div>
             </Link>
             
             <div className="hidden lg:flex items-center gap-8">
               <Link to="/" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Home</Link>
-              <Link to="/category/Tech" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Tech</Link>
+              <Link to="/category/Technology" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Technology</Link>
               <Link to="/category/Earning" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Earning</Link>
-              <Link to="/category/News" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">News</Link>
+              <Link to="/category/Education" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Education</Link>
+              <Link to="/category/Lifestyle" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Lifestyle</Link>
               <Link to="/about" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">About</Link>
               <Link to="/contact" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Contact</Link>
             </div>
@@ -575,12 +577,12 @@ const Footer = () => {
           <div className="space-y-6">
             <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
-                E
+                B
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">EarnBlog</span>
+              <span className="text-xl font-bold tracking-tight text-white">BloggerPro</span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
-              The world's leading platform for writers and readers. Share your stories, engage with the community, and earn rewards for your creativity.
+              A premier platform for insightful articles, expert opinions, and helpful guides. Join our community of writers and readers today.
             </p>
             <div className="flex items-center gap-4">
               {['Twitter', 'Facebook', 'Instagram', 'LinkedIn'].map(social => (
@@ -607,20 +609,20 @@ const Footer = () => {
             <ul className="space-y-4">
               <li><Link to="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">Privacy Policy</Link></li>
               <li><Link to="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">Terms & Conditions</Link></li>
-              <li><Link to="/disclaimer" className="text-gray-400 hover:text-white transition-colors text-sm">Disclaimer</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-lg font-bold mb-6">Newsletter</h4>
-            <p className="text-gray-400 text-sm mb-6">Get the latest stories and earning tips delivered to your inbox.</p>
-            <form className="flex gap-2">
+            <p className="text-gray-400 text-sm mb-6">Get the latest stories and insights delivered to your inbox.</p>
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); toast.success('Subscribed successfully!'); }}>
               <input 
                 type="email" 
+                required
                 placeholder="Email address" 
                 className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm flex-1 focus:outline-none focus:border-orange-500"
               />
-              <button className="bg-orange-600 p-2 rounded-xl hover:bg-orange-700 transition-colors">
+              <button type="submit" className="bg-orange-600 p-2 rounded-xl hover:bg-orange-700 transition-colors">
                 <ArrowRight className="w-5 h-5" />
               </button>
             </form>
@@ -630,12 +632,17 @@ const Footer = () => {
         <AdBanner position="footer" />
 
         <div className="pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-gray-500 text-xs">
-            © {new Date().getFullYear()} EarnBlog. All rights reserved. Professional Blogging Platform.
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-500 text-xs">
+              © {new Date().getFullYear()} BloggerPro. All rights reserved.
+            </p>
+            <p className="text-[10px] text-gray-600 max-w-md leading-relaxed">
+              Disclaimer: The information provided on this website is for educational and informational purposes only. We do not guarantee any specific results or outcomes.
+            </p>
+          </div>
           <div className="flex items-center gap-6 text-xs text-gray-500">
-            <span>Powered by AI Studio</span>
-            <span>AdSense Ready</span>
+            <span>Professional Content Platform</span>
+            <span>AdSense Compliant</span>
           </div>
         </div>
       </div>
@@ -720,7 +727,7 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
 // --- Pages ---
 
 const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
-  const categories = ['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'];
+  const categories = ['Technology', 'Earning', 'Education', 'Lifestyle'];
   
   return (
     <aside className="space-y-12">
@@ -772,7 +779,7 @@ const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
           {categories.map(cat => (
             <Link 
               key={cat} 
-              to={`/category/${cat.toLowerCase()}`}
+              to={`/category/${cat}`}
               className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-bold hover:bg-orange-500 hover:text-white transition-all border border-gray-100"
             >
               {cat}
@@ -782,8 +789,8 @@ const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
       </div>
 
       <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-8 rounded-3xl text-white shadow-xl shadow-orange-900/20">
-        <h3 className="text-xl font-bold mb-4">Write & Earn</h3>
-        <p className="text-orange-100 text-sm mb-6 leading-relaxed">Share your knowledge with our global community and earn coins for every view.</p>
+        <h3 className="text-xl font-bold mb-4">Share Knowledge</h3>
+        <p className="text-orange-100 text-sm mb-6 leading-relaxed">Join our community of writers and share your unique perspective with the world.</p>
         <Link to="/create" className="block w-full py-3 bg-white text-orange-600 rounded-2xl text-center font-bold text-sm hover:bg-orange-50 transition-colors">
           Start Writing
         </Link>
@@ -814,7 +821,7 @@ const Home = () => {
   const featuredPosts = posts.slice(0, 3);
   const latestPosts = posts.slice(3);
   const popularPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
-  const categories = ['Tech', 'Earning', 'News', 'Lifestyle', 'Finance', 'Health'];
+  const categories = ['Technology', 'Earning', 'Education', 'Lifestyle'];
 
   if (loading) {
     return (
@@ -827,6 +834,23 @@ const Home = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <AdBanner position="top" />
+
+      {/* Hero Section */}
+      <section className="py-20 text-center space-y-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="space-y-4"
+        >
+          <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tight leading-tight">
+            Learn, Explore, and <br />
+            <span className="text-orange-600">Share Knowledge</span>
+          </h1>
+          <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium">
+            Discover insightful articles, expert opinions, and helpful guides from our global community of writers.
+          </p>
+        </motion.div>
+      </section>
 
       {/* Category Navigation */}
       <div className="flex items-center gap-4 overflow-x-auto pb-8 no-scrollbar">
@@ -930,7 +954,7 @@ const Home = () => {
               >
                 <Link to={`/post/${post.id}`} className="md:w-72 aspect-[4/3] rounded-3xl overflow-hidden shadow-lg flex-shrink-0">
                   <img 
-                    src={post.thumbnail || 'https://picsum.photos/seed/article/600/400'} 
+                    src={post.thumbnail || `https://picsum.photos/seed/${post.id}/600/400`} 
                     alt={post.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     referrerPolicy="no-referrer"
@@ -938,33 +962,30 @@ const Home = () => {
                 </Link>
                 <div className="flex-1 space-y-4 py-2">
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{post.category}</span>
+                    <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase tracking-widest rounded-full">{post.category}</span>
                     <div className="w-1 h-1 bg-gray-300 rounded-full" />
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                       {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}
                     </span>
                   </div>
                   <Link to={`/post/${post.id}`}>
-                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-tight">
+                    <h3 className="text-2xl font-black text-gray-900 group-hover:text-orange-600 transition-colors leading-tight">
                       {post.title}
                     </h3>
                   </Link>
                   <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">
-                    {post.content.substring(0, 180)}...
+                    {post.content.replace(/<[^>]*>/g, '').substring(0, 180)}...
                   </p>
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
                         {post.authorName[0]}
                       </div>
-                      <span className="text-xs font-bold text-gray-700">{post.authorName}</span>
+                      <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{post.authorName}</span>
                     </div>
                     <div className="flex items-center gap-4 text-gray-400">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
                         <Eye className="w-3.5 h-3.5" /> {post.views}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                        <MessageSquare className="w-3.5 h-3.5" /> 12
                       </div>
                     </div>
                   </div>
@@ -1043,21 +1064,24 @@ const Home = () => {
 const About = () => (
   <div className="max-w-4xl mx-auto px-4 py-20 prose prose-orange">
     <AdBanner position="top" />
-    <h1 className="text-5xl font-black mb-10">About EarnBlog</h1>
+    <h1 className="text-5xl font-black mb-10">About Our Platform</h1>
     <p className="text-xl text-gray-600 leading-relaxed">
-      EarnBlog is a premium blogging platform designed for the modern era of digital storytelling. We believe that every voice deserves to be heard and every creator deserves to be rewarded.
+      Welcome to our premier blogging platform, a dedicated space for thinkers, creators, and lifelong learners. We are committed to fostering a community where high-quality content meets a professional reading experience.
     </p>
     <img src="https://picsum.photos/seed/about/1200/600" alt="About Us" className="rounded-[40px] my-12 shadow-2xl" referrerPolicy="no-referrer" />
-    <h2>Our Mission</h2>
+    <h2>Our Vision</h2>
     <p>
-      Our mission is to democratize the world of blogging by providing a high-quality, professional platform where writers can share their expertise and readers can find reliable, engaging content.
+      Our vision is to become the leading destination for insightful and educational content across various domains, including technology, finance, education, and lifestyle. We believe in the power of shared knowledge to inspire and inform.
     </p>
-    <h2>Why Choose Us?</h2>
+    <h2>What We Offer</h2>
     <ul>
-      <li><strong>Professional Design:</strong> Your content looks premium from day one.</li>
-      <li><strong>Earn Rewards:</strong> Get paid for your creativity through our unique coin system.</li>
-      <li><strong>Global Community:</strong> Connect with readers and writers from around the world.</li>
+      <li><strong>Expert Insights:</strong> Articles written by passionate individuals with deep knowledge in their fields.</li>
+      <li><strong>Professional Community:</strong> A clean, distraction-free environment focused on the art of storytelling.</li>
+      <li><strong>Global Reach:</strong> Connecting diverse perspectives from around the world through a unified platform.</li>
     </ul>
+    <p>
+      Whether you are here to learn something new or to share your own expertise, we provide the tools and the audience to make your voice heard in a professional and impactful way.
+    </p>
   </div>
 );
 
@@ -1066,9 +1090,9 @@ const Contact = () => (
     <AdBanner position="top" />
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
       <div className="space-y-10">
-      <h1 className="text-5xl font-black">Get in Touch</h1>
+      <h1 className="text-5xl font-black">Contact Us</h1>
       <p className="text-xl text-gray-600 leading-relaxed">
-        Have a question, feedback, or just want to say hello? We'd love to hear from you. Our team is here to support your blogging journey.
+        Have questions, suggestions, or feedback? We value your input and are here to help. Reach out to our team for any inquiries regarding our platform or content.
       </p>
       <div className="space-y-6">
         <div className="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
@@ -1076,8 +1100,8 @@ const Contact = () => (
             <Bell className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Us</p>
-            <p className="text-lg font-bold text-gray-900">support@earnblog.com</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Support</p>
+            <p className="text-lg font-bold text-gray-900">contact@earnblog.com</p>
           </div>
         </div>
         <div className="flex items-center gap-6 p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
@@ -1085,33 +1109,33 @@ const Contact = () => (
             <History className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Call Us</p>
-            <p className="text-lg font-bold text-gray-900">+92 312 1130219</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Support Hours</p>
+            <p className="text-lg font-bold text-gray-900">Mon - Fri, 9AM - 6PM</p>
           </div>
         </div>
       </div>
     </div>
     <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100">
-      <form className="space-y-6">
+      <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); toast.success('Message sent successfully!'); }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
-            <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="John Doe" />
+            <input type="text" required className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="John Doe" />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
-            <input type="email" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="john@example.com" />
+            <input type="email" required className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="john@example.com" />
           </div>
         </div>
         <div className="space-y-2">
           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Subject</label>
-          <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="How can we help?" />
+          <input type="text" required className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="How can we help?" />
         </div>
         <div className="space-y-2">
           <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Message</label>
-          <textarea rows={6} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="Your message here..." />
+          <textarea rows={6} required className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" placeholder="Your message here..." />
         </div>
-        <button className="w-full py-5 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/20">
+        <button type="submit" className="w-full py-5 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/20">
           Send Message
         </button>
       </form>
@@ -1133,6 +1157,8 @@ const LegalPage = ({ title, content }: { title: string, content: string }) => (
 const PostView = () => {
   const { id } = useParams();
   const [post, setPost] = useState<BlogPost | null>(null);
+  const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const { settings } = useAuth();
   const navigate = useNavigate();
 
@@ -1148,9 +1174,39 @@ const PostView = () => {
         }
       }, (error) => handleFirestoreError(error, OperationType.GET, `posts/${id}`));
 
-      return () => unsubscribe();
+      // Fetch popular posts for sidebar
+      const popularQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'approved'),
+        orderBy('views', 'desc'),
+        limit(5)
+      );
+      const unsubPopular = onSnapshot(popularQ, (snap) => {
+        setPopularPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+      });
+
+      return () => {
+        unsubscribe();
+        unsubPopular();
+      };
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (post) {
+      // Fetch related posts (same category, excluding current post)
+      const relatedQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'approved'),
+        where('category', '==', post.category),
+        limit(4)
+      );
+      const unsubRelated = onSnapshot(relatedQ, (snap) => {
+        setRelatedPosts(snap.docs.filter(d => d.id !== post.id).map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)).slice(0, 3));
+      });
+      return () => unsubRelated();
+    }
+  }, [post]);
 
   // Separate effect for incrementing views to avoid infinite loops
   useEffect(() => {
@@ -1239,7 +1295,12 @@ const PostView = () => {
 
             <div className="prose prose-orange prose-xl max-w-none">
               <div className="text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">
-                {post.content}
+                {post.content.split('\n\n').map((para, i) => (
+                  <React.Fragment key={i}>
+                    <p>{para}</p>
+                    {i === 1 && <AdBanner position="inline" />}
+                  </React.Fragment>
+                ))}
               </div>
             </div>
             
@@ -1254,14 +1315,32 @@ const PostView = () => {
               </div>
             </div>
 
-            <AdBanner position="inline" />
+            {relatedPosts.length > 0 && (
+              <section className="pt-10 border-t border-gray-100 space-y-8">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Related Stories</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {relatedPosts.map(rp => (
+                    <Link key={rp.id} to={`/post/${rp.id}`} className="group space-y-4">
+                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
+                        <img src={rp.thumbnail || `https://picsum.photos/seed/${rp.id}/400/300`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
+                      </div>
+                      <h4 className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors line-clamp-2 leading-tight">
+                        {rp.title}
+                      </h4>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <AdBanner position="footer" />
 
             <Comments postId={post.id} />
           </motion.div>
         </div>
 
         <div className="lg:col-span-4">
-          <Sidebar popularPosts={[]} />
+          <Sidebar popularPosts={popularPosts} />
         </div>
       </div>
     </div>
@@ -2737,36 +2816,45 @@ export default function App() {
               <Route path="/privacy" element={<LegalPage title="Privacy Policy" content={`
 Last updated: April 01, 2026
 
-At EarnBlog, we take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information.
+At our platform, we take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information.
 
 1. Information We Collect
 We collect information you provide directly to us, such as when you create an account, write a post, or contact us for support. This may include your name, email address, and payment information.
 
-2. How We Use Your Information
-We use your information to provide and improve our services, communicate with you, and ensure the security of our platform.
+2. Cookies and Web Beacons
+Like any other website, we use 'cookies'. These cookies are used to store information including visitors' preferences, and the pages on the website that the visitor accessed or visited. The information is used to optimize the users' experience by customizing our web page content based on visitors' browser type and/or other information.
 
-3. Data Security
+3. Google DoubleClick DART Cookie
+Google is one of a third-party vendor on our site. It also uses cookies, known as DART cookies, to serve ads to our site visitors based upon their visit to our site and other sites on the internet. However, visitors may choose to decline the use of DART cookies by visiting the Google ad and content network Privacy Policy at the following URL – https://policies.google.com/technologies/ads
+
+4. Our Advertising Partners
+Some of advertisers on our site may use cookies and web beacons. Our advertising partners include Google AdSense. Each of our advertising partners has their own Privacy Policy for their policies on user data.
+
+5. Third-Party Privacy Policies
+Our Privacy Policy does not apply to other advertisers or websites. Thus, we are advising you to consult the respective Privacy Policies of these third-party ad servers for more detailed information. It may include their practices and instructions about how to opt-out of certain options.
+
+6. Data Security
 We implement a variety of security measures to maintain the safety of your personal information. However, no method of transmission over the Internet is 100% secure.
-
-4. Third-Party Services
-We may use third-party services, such as Google AdSense, which may collect information about your visits to this and other websites.
               `} />} />
               <Route path="/terms" element={<LegalPage title="Terms & Conditions" content={`
 Last updated: April 01, 2026
 
-By using EarnBlog, you agree to comply with and be bound by the following terms and conditions.
+By using our platform, you agree to comply with and be bound by the following terms and conditions.
 
 1. Content Ownership
-You retain ownership of the content you post on EarnBlog. However, by posting, you grant us a non-exclusive, royalty-free license to use, display, and distribute your content.
+You retain ownership of the content you post. However, by posting, you grant us a non-exclusive, royalty-free license to use, display, and distribute your content.
 
 2. Prohibited Content
 You may not post content that is illegal, offensive, or violates the rights of others. We reserve the right to remove any content that violates these terms.
 
-3. Earnings and Payouts
-Earnings are based on views and other engagement metrics. Payouts are subject to our verification process and minimum threshold requirements.
+3. Professional Conduct
+Users are expected to maintain a professional tone and provide helpful, accurate information. Misleading content or "get rich quick" schemes are strictly prohibited.
 
 4. Limitation of Liability
-EarnBlog is provided "as is" without any warranties. We are not liable for any damages arising from your use of the platform.
+Our platform is provided "as is" without any warranties. We are not liable for any damages arising from your use of the platform.
+
+5. Changes to Terms
+We reserve the right to modify these terms at any time. Your continued use of the platform constitutes acceptance of the updated terms.
               `} />} />
             </Routes>
           </main>
