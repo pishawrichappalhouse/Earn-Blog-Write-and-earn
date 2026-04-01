@@ -73,7 +73,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email == "pishawrichappalhouse@gmail.com" ||
+        ((request.auth.token.email == "pishawrichappalhouse@gmail.com" && request.auth.token.email_verified == true) ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -90,7 +90,10 @@ service cloud.firestore {
     }
 
     function isValidPost(data) {
-      return data.keys().hasAll(['title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt']) &&
+      let requiredFields = ['title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt'];
+      let optionalFields = ['thumbnail'];
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
              data.content is string && data.content.size() >= 10 &&
              data.authorId is string && data.authorId == request.auth.uid &&
@@ -98,7 +101,8 @@ service cloud.firestore {
              data.category is string && data.category.size() > 0 &&
              data.views is number && data.views >= 0 &&
              data.status in ['pending', 'approved', 'rejected'] &&
-             (data.createdAt is timestamp || data.createdAt == request.time);
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('thumbnail' in data) || (data.thumbnail is string));
     }
 
     function isValidWithdrawal(data) {
@@ -125,7 +129,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && request.auth.token.email == "pishawrichappalhouse@gmail.com"));
+                    (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && request.auth.token.email == "pishawrichappalhouse@gmail.com" && request.auth.token.email_verified == true));
       allow update: if isAuthenticated() && (
         (isOwner(userId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']) &&
@@ -140,7 +144,8 @@ service cloud.firestore {
     // Rules for Posts Collection
     match /posts/{postId} {
       allow read: if true; // Publicly readable
-      allow create: if isAuthenticated() && isValidPost(request.resource.data) && request.resource.data.status == 'pending';
+      allow create: if isAuthenticated() && isValidPost(request.resource.data) && 
+                    (request.resource.data.status == 'pending' || (request.resource.data.status == 'approved' && isAdmin()));
       allow update: if (isAuthenticated() && (
         (isOwner(resource.data.authorId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'category', 'thumbnail']) &&

@@ -1,6 +1,19 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area,
+  BarChart,
+  Bar
+} from 'recharts';
+import { 
   LayoutDashboard, 
   PenSquare, 
   TrendingUp, 
@@ -29,7 +42,8 @@ import {
   AlertCircle,
   Check,
   Ban,
-  Database
+  Database,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -1337,7 +1351,7 @@ const Dashboard = () => {
 
 const Editor = () => {
   const { user } = useAuth();
-  const [form, setForm] = useState({ title: '', content: '', category: 'Technology', thumbnail: '' });
+  const [form, setForm] = useState({ title: '', content: '', category: 'Tech', thumbnail: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -1434,10 +1448,11 @@ const Editor = () => {
 
 const AdminPanel = () => {
   const { user, settings } = useAuth();
-  const [activeTab, setActiveTab] = useState<'posts' | 'withdrawals' | 'users' | 'settings'>('posts');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'posts' | 'withdrawals' | 'users' | 'settings'>('dashboard');
   const [pendingPosts, setPendingPosts] = useState<BlogPost[]>([]);
   const [pendingWithdrawals, setPendingWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allWithdrawals, setAllWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0 });
   const navigate = useNavigate();
 
@@ -1466,7 +1481,8 @@ const AdminPanel = () => {
     });
 
     const allWithdrawalsUnsub = onSnapshot(collection(db, 'withdrawals'), (snapshot) => {
-      const withdrawals = snapshot.docs.map(doc => doc.data() as WithdrawalRequest);
+      const withdrawals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithdrawalRequest));
+      setAllWithdrawals(withdrawals);
       setPlatformStats(prev => ({
         ...prev,
         totalWithdrawals: withdrawals.filter(w => w.status === 'approved').reduce((acc, w) => acc + w.amount, 0)
@@ -1480,6 +1496,47 @@ const AdminPanel = () => {
       allWithdrawalsUnsub();
     };
   }, [user, navigate]);
+
+  // Process data for charts
+  const getChartData = () => {
+    // User Growth (Cumulative)
+    const sortedUsers = [...allUsers]
+      .filter(u => u.createdAt)
+      .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+    
+    const userGrowthData = sortedUsers.reduce((acc: any[], u, index) => {
+      const date = u.createdAt?.toDate ? format(u.createdAt.toDate(), 'MMM d') : 'Unknown';
+      const last = acc[acc.length - 1];
+      if (last && last.date === date) {
+        last.users = index + 1;
+      } else {
+        acc.push({ date, users: index + 1 });
+      }
+      return acc;
+    }, []);
+
+    // Earnings/Payouts over time
+    const sortedWithdrawals = [...allWithdrawals]
+      .filter(w => w.status === 'approved' && w.createdAt)
+      .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+
+    let cumulativePayout = 0;
+    const payoutData = sortedWithdrawals.reduce((acc: any[], w) => {
+      const date = w.createdAt?.toDate ? format(w.createdAt.toDate(), 'MMM d') : 'Unknown';
+      cumulativePayout += w.amount;
+      const last = acc[acc.length - 1];
+      if (last && last.date === date) {
+        last.amount = cumulativePayout;
+      } else {
+        acc.push({ date, amount: cumulativePayout });
+      }
+      return acc;
+    }, []);
+
+    return { userGrowthData, payoutData };
+  };
+
+  const { userGrowthData, payoutData } = getChartData();
 
   const handlePostAction = async (id: string, status: 'approved' | 'rejected') => {
     await updateDoc(doc(db, 'posts', id), { status });
@@ -1597,7 +1654,7 @@ const AdminPanel = () => {
             <Database className="w-4 h-4" /> Seed Sample Data
           </button>
           <div className="flex bg-gray-100 p-1 rounded-2xl overflow-x-auto">
-            {['posts', 'withdrawals', 'users', 'settings'].map(tab => (
+            {['dashboard', 'posts', 'withdrawals', 'users', 'settings'].map(tab => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -1629,6 +1686,154 @@ const AdminPanel = () => {
       </div>
 
       <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+        {activeTab === 'dashboard' && (
+          <div className="p-8 space-y-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">User Growth</h3>
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-bold">
+                    <TrendingUp className="w-3 h-3" /> Growth
+                  </div>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={userGrowthData}>
+                      <defs>
+                        <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#9333ea" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#9333ea" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#9ca3af'}}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#9ca3af'}}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="users" 
+                        stroke="#9333ea" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorUsers)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">Payout History</h3>
+                  <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-1 rounded-full text-xs font-bold">
+                    <TrendingUp className="w-3 h-3" /> Payouts
+                  </div>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={payoutData}>
+                      <defs>
+                        <linearGradient id="colorPayout" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ea580c" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#9ca3af'}}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 12, fill: '#9ca3af'}}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="#ea580c" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorPayout)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="bg-gray-50 p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-3 text-purple-600">
+                  <Users className="w-5 h-5" />
+                  <h4 className="font-bold">Recent Users</h4>
+                </div>
+                <div className="space-y-3">
+                  {allUsers.slice(-5).reverse().map(u => (
+                    <div key={u.uid} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-purple-600 border border-purple-100">
+                          {u.displayName[0]}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{u.displayName}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase">{u.createdAt?.toDate ? format(u.createdAt.toDate(), 'MMM d') : 'New'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-3 text-orange-600">
+                  <Wallet className="w-5 h-5" />
+                  <h4 className="font-bold">Recent Payouts</h4>
+                </div>
+                <div className="space-y-3">
+                  {allWithdrawals.filter(w => w.status === 'approved').slice(-5).reverse().map(w => (
+                    <div key={w.id} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">{w.userName}</span>
+                      <span className="text-sm font-bold text-orange-600">{w.amount} Coins</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-3 text-green-600">
+                  <TrendingUp className="w-5 h-5" />
+                  <h4 className="font-bold">Top Earners</h4>
+                </div>
+                <div className="space-y-3">
+                  {[...allUsers].sort((a, b) => b.totalEarned - a.totalEarned).slice(0, 5).map(u => (
+                    <div key={u.uid} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">{u.displayName}</span>
+                      <span className="text-sm font-bold text-green-600">{u.totalEarned.toFixed(0)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'posts' && (
           <div className="p-8">
             <h2 className="text-xl font-bold mb-6">Pending Approvals ({pendingPosts.length})</h2>
