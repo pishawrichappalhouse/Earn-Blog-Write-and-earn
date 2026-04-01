@@ -335,9 +335,9 @@ const Navbar = () => {
             
             <div className="hidden lg:flex items-center gap-8">
               <Link to="/" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Home</Link>
-              <Link to="/category/tech" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Tech</Link>
-              <Link to="/category/earning" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Earning</Link>
-              <Link to="/category/news" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">News</Link>
+              <Link to="/category/Tech" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Tech</Link>
+              <Link to="/category/Earning" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Earning</Link>
+              <Link to="/category/News" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">News</Link>
               <Link to="/about" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">About</Link>
               <Link to="/contact" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Contact</Link>
             </div>
@@ -420,9 +420,9 @@ const Navbar = () => {
             <div className="px-4 py-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <Link to="/" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Home</Link>
-                <Link to="/category/tech" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Tech</Link>
-                <Link to="/category/earning" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Earning</Link>
-                <Link to="/category/news" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">News</Link>
+                <Link to="/category/Tech" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Tech</Link>
+                <Link to="/category/Earning" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Earning</Link>
+                <Link to="/category/News" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">News</Link>
               </div>
               
               {user ? (
@@ -998,23 +998,9 @@ const PostView = () => {
   useEffect(() => {
     if (id) {
       const docRef = doc(db, 'posts', id);
-      const unsubscribe = onSnapshot(docRef, async (docSnap) => {
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
-          const data = docSnap.data() as BlogPost;
-          setPost({ id: docSnap.id, ...data });
-          
-          // Increment views and award coins
-          const currentUserId = auth.currentUser?.uid;
-          if (currentUserId && currentUserId !== data.authorId) {
-            await updateDoc(docRef, { views: increment(1) });
-            const authorRef = doc(db, 'users', data.authorId);
-            await updateDoc(authorRef, { 
-              coins: increment(settings.coinValuePerView),
-              totalEarned: increment(settings.coinValuePerView)
-            });
-          } else if (!currentUserId) {
-            await updateDoc(docRef, { views: increment(1) });
-          }
+          setPost({ id: docSnap.id, ...docSnap.data() } as BlogPost);
         } else {
           toast.error('Post not found');
           navigate('/');
@@ -1023,7 +1009,38 @@ const PostView = () => {
 
       return () => unsubscribe();
     }
-  }, [id, navigate, settings.coinValuePerView]);
+  }, [id, navigate]);
+
+  // Separate effect for incrementing views to avoid infinite loops
+  useEffect(() => {
+    const incrementViews = async () => {
+      if (!id) return;
+      const docRef = doc(db, 'posts', id);
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data() as BlogPost;
+          const currentUserId = auth.currentUser?.uid;
+          
+          // Increment views
+          await updateDoc(docRef, { views: increment(1) });
+          
+          // Award coins if viewer is not the author
+          if (currentUserId && currentUserId !== data.authorId) {
+            const authorRef = doc(db, 'users', data.authorId);
+            await updateDoc(authorRef, { 
+              coins: increment(settings.coinValuePerView),
+              totalEarned: increment(settings.coinValuePerView)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to increment views:', error);
+      }
+    };
+
+    incrementViews();
+  }, [id, settings.coinValuePerView]);
 
   if (!post) return null;
 
@@ -1526,7 +1543,7 @@ const AdminPanel = () => {
             authorId: user?.uid || 'admin',
             authorName: user?.displayName || 'Admin',
             status: 'approved',
-            views: Math.floor(Math.random() * 5000),
+            views: 0,
             createdAt: serverTimestamp(),
           };
           await addDoc(collection(db, 'posts'), postData);
@@ -1914,9 +1931,14 @@ const CategoryView = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!category) return;
+    
+    // Normalize category name (Capitalize first letter if it's lowercase)
+    const normalizedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+
     const q = query(
       collection(db, 'posts'),
-      where('category', '==', category),
+      where('category', 'in', [category, normalizedCategory]),
       where('status', '==', 'approved'),
       orderBy('createdAt', 'desc')
     );
