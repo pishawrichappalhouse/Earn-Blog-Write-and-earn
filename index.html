@@ -4,23 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EarnBlog - Write & Earn</title>
-    <script>
-      (function() {
-        var publisherId = "%VITE_ADSENSE_PUBLISHER_ID%";
-        // Fallback if environment variable is not set or not replaced by Vite
-        if (!publisherId || publisherId === "" || publisherId.indexOf("VITE_ADSENSE_PUBLISHER_ID") !== -1) {
-          publisherId = "ca-pub-6776734432817673";
-        }
-        var script = document.createElement('script');
-        script.async = true;
-        script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + publisherId;
-        script.crossOrigin = "anonymous";
-        document.head.appendChild(script);
-      })();
+
+    <!-- ✅ Google AdSense Script (Correct) -->
+    <script async 
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6776734432817673"
+      crossorigin="anonymous">
     </script>
+
   </head>
+
   <body>
     <div id="root"></div>
+
+    <!-- React App -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

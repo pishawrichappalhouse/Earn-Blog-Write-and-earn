@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   LineChart, 
   Line, 
@@ -646,19 +646,24 @@ const Footer = () => {
 const pushedElements = new WeakSet<HTMLElement>();
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
+  const location = useLocation();
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
-  const slotId = import.meta.env.VITE_ADSENSE_SLOT_ID || 'auto';
+  const slotId = import.meta.env.VITE_ADSENSE_SLOT_ID || '3774238446';
   const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
+    if (location.pathname === '/admin') return;
     // In a SPA with React StrictMode, components mount twice in development.
     // This can cause multiple adsbygoogle.push() calls for the same slot,
     // leading to the "All 'ins' elements... already have ads in them" error.
     // Using a timeout that is cleared on unmount ensures we only push once
     // when the component is actually staying in the DOM.
-    const timeoutId = setTimeout(() => {
+    const tryPushAd = (retries = 0) => {
+      if (retries > 5) return; // Stop after 5 retries
+
       try {
         if (adRef.current && 
+            adRef.current.offsetWidth > 0 &&
             !pushedElements.has(adRef.current) && 
             !adRef.current.hasAttribute('data-adsbygoogle-status') && 
             adRef.current.innerHTML === '') {
@@ -666,17 +671,27 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
           pushedElements.add(adRef.current);
           // @ts-ignore
           (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } else if (adRef.current && adRef.current.offsetWidth === 0) {
+          // If width is 0, wait and try again
+          setTimeout(() => tryPushAd(retries + 1), 500);
         }
       } catch (e) {
         // Silently catch common AdSense race condition errors
-        if (e instanceof Error && !e.message.includes('already have ads')) {
+        if (e instanceof Error && 
+            !e.message.includes('already have ads') && 
+            !e.message.includes('No slot size')) {
           console.error('AdSense error:', e);
         }
       }
-    }, 500);
+    };
+
+    const timeoutId = setTimeout(() => tryPushAd(), 500);
 
     return () => clearTimeout(timeoutId);
-  }, [position]);
+  }, [position, location.pathname]);
+
+  // Hide ads on Admin Panel
+  if (location.pathname === '/admin') return null;
 
   const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
 
@@ -1027,6 +1042,7 @@ const Home = () => {
 
 const About = () => (
   <div className="max-w-4xl mx-auto px-4 py-20 prose prose-orange">
+    <AdBanner position="top" />
     <h1 className="text-5xl font-black mb-10">About EarnBlog</h1>
     <p className="text-xl text-gray-600 leading-relaxed">
       EarnBlog is a premium blogging platform designed for the modern era of digital storytelling. We believe that every voice deserves to be heard and every creator deserves to be rewarded.
@@ -1046,8 +1062,10 @@ const About = () => (
 );
 
 const Contact = () => (
-  <div className="max-w-7xl mx-auto px-4 py-20 grid grid-cols-1 lg:grid-cols-2 gap-20">
-    <div className="space-y-10">
+  <div className="max-w-7xl mx-auto px-4 py-20">
+    <AdBanner position="top" />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+      <div className="space-y-10">
       <h1 className="text-5xl font-black">Get in Touch</h1>
       <p className="text-xl text-gray-600 leading-relaxed">
         Have a question, feedback, or just want to say hello? We'd love to hear from you. Our team is here to support your blogging journey.
@@ -1099,10 +1117,12 @@ const Contact = () => (
       </form>
     </div>
   </div>
+</div>
 );
 
 const LegalPage = ({ title, content }: { title: string, content: string }) => (
   <div className="max-w-4xl mx-auto px-4 py-20 prose prose-orange">
+    <AdBanner position="top" />
     <h1 className="text-5xl font-black mb-10">{title}</h1>
     <div className="text-gray-600 leading-relaxed whitespace-pre-wrap">
       {content}
@@ -1349,6 +1369,7 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <AdBanner position="top" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
@@ -1554,6 +1575,7 @@ const Editor = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      <AdBanner position="top" />
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Create New Story</h1>
@@ -1740,6 +1762,17 @@ const AdminPanel = () => {
       toast.success(`Post ${status}!`);
     } catch (error) {
       toast.error('Failed to update post status');
+      console.error(error);
+    }
+  };
+
+  const handleDeletePost = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'posts', id));
+      toast.success('Post deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete post');
       console.error(error);
     }
   };
@@ -2148,6 +2181,7 @@ const AdminPanel = () => {
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Category</th>
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Views</th>
                         <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Status</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -2177,6 +2211,15 @@ const AdminPanel = () => {
                               {post.status}
                             </span>
                           </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => handleDeletePost(post.id)}
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                              title="Delete Post"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2188,34 +2231,83 @@ const AdminPanel = () => {
         )}
 
         {activeTab === 'withdrawals' && (
-          <div className="p-8">
-            <h2 className="text-xl font-bold mb-6">Pending Withdrawals ({pendingWithdrawals.length})</h2>
-            <div className="space-y-4">
-              {pendingWithdrawals.map(req => (
-                <div key={req.id} className="p-6 bg-gray-50 rounded-3xl space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-gray-900">{req.userName}</h4>
-                      <p className="text-sm text-orange-600 font-bold">{req.amount} Coins</p>
+          <div className="p-8 space-y-12">
+            <div>
+              <h2 className="text-xl font-bold mb-6">Pending Withdrawals ({pendingWithdrawals.length})</h2>
+              <div className="space-y-4">
+                {pendingWithdrawals.map(req => (
+                  <div key={req.id} className="p-6 bg-gray-50 rounded-3xl space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-gray-900">{req.userName}</h4>
+                        <p className="text-sm text-orange-600 font-bold">{req.amount} Coins</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleWithdrawalAction(req.id, 'approved')} className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700">Approve</button>
+                        <button onClick={() => handleWithdrawalAction(req.id, 'cancelled')} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700">Cancel</button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleWithdrawalAction(req.id, 'approved')} className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700">Approve</button>
-                      <button onClick={() => handleWithdrawalAction(req.id, 'cancelled')} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700">Cancel</button>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Method</p>
+                        <p className="text-gray-900 font-medium">{req.method}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Details</p>
+                        <p className="text-gray-900 font-medium">{req.details}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Method</p>
-                      <p className="text-gray-900 font-medium">{req.method}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Details</p>
-                      <p className="text-gray-900 font-medium">{req.details}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {pendingWithdrawals.length === 0 && <p className="text-center text-gray-400">No pending withdrawals.</p>}
+                ))}
+                {pendingWithdrawals.length === 0 && <p className="text-center text-gray-400">No pending withdrawals.</p>}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold mb-6">Withdrawal History</h2>
+              <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Method</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {allWithdrawals.filter(w => w.status !== 'pending').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(req => (
+                      <tr key={req.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-bold text-gray-900">{req.userName}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-bold text-orange-600">{req.amount} Coins</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded-lg text-gray-600">{req.method}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
+                            req.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-xs text-gray-400">
+                            {req.createdAt?.toDate ? format(req.createdAt.toDate(), 'MMM d, yyyy') : 'Unknown'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {allWithdrawals.filter(w => w.status !== 'pending').length === 0 && (
+                  <div className="p-8 text-center text-gray-400">No withdrawal history found.</div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2406,7 +2498,8 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
+      <AdBanner position="top" />
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -2569,6 +2662,7 @@ const CategoryView = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <AdBanner position="top" />
       <div className="flex items-center gap-4 mb-12">
         <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">{category} Stories</h1>
         <div className="h-[2px] bg-gray-100 flex-1" />
