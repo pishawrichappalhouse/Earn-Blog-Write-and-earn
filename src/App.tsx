@@ -60,7 +60,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
-import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus } from './services/emailService';
+import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed } from './services/emailService';
 import { cn } from './lib/utils';
 
 // --- Types ---
@@ -97,6 +97,7 @@ interface WithdrawalRequest {
   method: 'JazzCash' | 'EasyPaisa' | 'Bank';
   details: string;
   status: 'pending' | 'approved' | 'cancelled';
+  rejectionReason?: string;
   createdAt: any;
 }
 
@@ -1487,12 +1488,20 @@ const AdminPanel = () => {
 
   const handleWithdrawalAction = async (id: string, status: 'approved' | 'cancelled') => {
     try {
+      let rejectionReason = '';
+      if (status === 'cancelled') {
+        rejectionReason = window.prompt('Please enter the reason for rejection:', 'Minimum withdrawal criteria not met') || 'Reason not specified';
+      }
+
       const withdrawalRef = doc(db, 'withdrawals', id);
       const withdrawalSnap = await getDoc(withdrawalRef);
       
       if (withdrawalSnap.exists()) {
         const withdrawalData = withdrawalSnap.data();
-        await updateDoc(withdrawalRef, { status });
+        await updateDoc(withdrawalRef, { 
+          status,
+          rejectionReason: status === 'cancelled' ? rejectionReason : null
+        });
         
         // Get user email to notify
         const userRef = doc(db, 'users', withdrawalData.userId);
@@ -1500,11 +1509,24 @@ const AdminPanel = () => {
         
         if (userSnap.exists()) {
           const userData = userSnap.data();
+          const finalStatus = status === 'approved' ? 'approved' : 'rejected';
+          
+          // Notify User
           notifyUserWithdrawalStatus({
             userEmail: userData.email,
             userName: userData.displayName,
             amount: withdrawalData.amount,
-            status: status === 'approved' ? 'approved' : 'rejected'
+            status: finalStatus,
+            rejectionReason: status === 'cancelled' ? rejectionReason : undefined
+          });
+
+          // Notify Admin
+          notifyAdminWithdrawalProcessed({
+            userEmail: userData.email,
+            userName: userData.displayName,
+            amount: withdrawalData.amount,
+            status: finalStatus,
+            rejectionReason: status === 'cancelled' ? rejectionReason : undefined
           });
         }
       }

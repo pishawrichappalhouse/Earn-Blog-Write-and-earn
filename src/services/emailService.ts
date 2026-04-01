@@ -40,7 +40,7 @@ export const notifyUserWithdrawalStatus = async (data: {
   userName: string;
   amount: number;
   status: 'approved' | 'rejected';
-  reason?: string;
+  rejectionReason?: string;
 }) => {
   try {
     await emailjs.send(
@@ -51,13 +51,42 @@ export const notifyUserWithdrawalStatus = async (data: {
         to_name: data.userName,
         amount: data.amount,
         status: data.status,
-        reason: data.reason || 'N/A',
-        message: `Your withdrawal request of ${data.amount} coins has been ${data.status}.`
+        reason: data.rejectionReason || 'N/A',
+        message: `Your withdrawal request of ${data.amount} coins has been ${data.status}.${data.status === 'rejected' && data.rejectionReason ? ` Reason: ${data.rejectionReason}` : ''}`
       },
       PUBLIC_KEY
     );
     console.log('User notified successfully');
   } catch (error) {
     console.error('Failed to notify user:', error);
+  }
+};
+
+export const notifyAdminWithdrawalProcessed = async (data: {
+  userName: string;
+  userEmail: string;
+  amount: number;
+  status: 'approved' | 'rejected';
+  rejectionReason?: string;
+}) => {
+  try {
+    await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID_ADMIN,
+      {
+        to_email: 'pishawrichappalhouse@gmail.com',
+        from_name: 'BlogEarn System',
+        user_name: data.userName,
+        user_email: data.userEmail,
+        amount: data.amount,
+        status: data.status,
+        reason: data.rejectionReason || 'N/A',
+        message: `Withdrawal request of ${data.amount} coins from ${data.userName} has been ${data.status}.${data.status === 'rejected' && data.rejectionReason ? ` Reason: ${data.rejectionReason}` : ''}`
+      },
+      PUBLIC_KEY
+    );
+    console.log('Admin notified of processed withdrawal');
+  } catch (error) {
+    console.error('Failed to notify admin of processed withdrawal:', error);
   }
 };
