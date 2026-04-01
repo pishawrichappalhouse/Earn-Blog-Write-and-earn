@@ -43,7 +43,8 @@ import {
   Check,
   Ban,
   Database,
-  Users
+  Users,
+  Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -1611,6 +1612,42 @@ const AdminPanel = () => {
     }
   };
 
+  const [editingUserCoins, setEditingUserCoins] = useState<string | null>(null);
+  const [coinAdjustment, setCoinAdjustment] = useState<string>('0');
+
+  const handleUpdateUserCoins = async (uid: string) => {
+    const adjustment = parseFloat(coinAdjustment);
+    if (isNaN(adjustment) || adjustment === 0) {
+      toast.error('Please enter a valid number');
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const currentCoins = userDoc.data().coins || 0;
+        const currentTotalEarned = userDoc.data().totalEarned || 0;
+        
+        const newCoins = Math.max(0, currentCoins + adjustment);
+        // Only increase totalEarned if adding coins
+        const newTotalEarned = adjustment > 0 ? currentTotalEarned + adjustment : currentTotalEarned;
+        
+        await updateDoc(userRef, { 
+          coins: newCoins,
+          totalEarned: newTotalEarned
+        });
+        
+        toast.success(`User coins updated!`);
+        setEditingUserCoins(null);
+        setCoinAdjustment('0');
+      }
+    } catch (error) {
+      toast.error('Failed to update user coins');
+      console.error(error);
+    }
+  };
+
   const updateSettings = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -1914,6 +1951,7 @@ const AdminPanel = () => {
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Coins</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Total Earned</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1931,8 +1969,59 @@ const AdminPanel = () => {
                       </div>
                     </td>
                     <td className="px-8 py-4 capitalize text-sm">{u.role}</td>
-                    <td className="px-8 py-4 text-sm font-bold">{u.coins.toFixed(0)}</td>
+                    <td className="px-8 py-4 text-sm font-bold">
+                      {editingUserCoins === u.uid ? (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="number" 
+                            value={coinAdjustment}
+                            onChange={(e) => setCoinAdjustment(e.target.value)}
+                            className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
+                            placeholder="+/-"
+                          />
+                          <button 
+                            onClick={() => handleUpdateUserCoins(u.uid)}
+                            className="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setEditingUserCoins(null);
+                              setCoinAdjustment('0');
+                            }}
+                            className="p-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{u.coins.toFixed(0)}</span>
+                          <button 
+                            onClick={() => {
+                              setEditingUserCoins(u.uid);
+                              setCoinAdjustment('0');
+                            }}
+                            className="p-1 text-gray-400 hover:text-orange-600 transition-colors"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-8 py-4 text-sm font-bold text-green-600">{u.totalEarned.toFixed(0)}</td>
+                    <td className="px-8 py-4 text-right">
+                      <button 
+                        onClick={() => {
+                          setEditingUserCoins(u.uid);
+                          setCoinAdjustment('0');
+                        }}
+                        className="text-xs font-bold text-orange-600 hover:text-orange-700"
+                      >
+                        Adjust Coins
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
