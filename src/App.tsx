@@ -1165,7 +1165,13 @@ const Dashboard = () => {
   const [userPosts, setUserPosts] = useState<BlogPost[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [withdrawForm, setWithdrawForm] = useState({ method: 'JazzCash', details: '' });
+  const [withdrawForm, setWithdrawForm] = useState({ 
+    method: 'JazzCash', 
+    amount: '',
+    accountName: '',
+    accountNumber: '',
+    iban: ''
+  });
 
   useEffect(() => {
     if (user) {
@@ -1189,26 +1195,42 @@ const Dashboard = () => {
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (user.coins < settings.minWithdrawal) {
+    
+    const amount = parseFloat(withdrawForm.amount);
+    
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (amount < settings.minWithdrawal) {
       toast.error(`Minimum withdrawal is ${settings.minWithdrawal} coins`);
+      return;
+    }
+
+    if (amount > user.coins) {
+      toast.error('Insufficient balance');
       return;
     }
 
     setIsWithdrawing(true);
     try {
-      const amount = user.coins;
+      const details = withdrawForm.method === 'Bank' 
+        ? `Name: ${withdrawForm.accountName}, IBAN: ${withdrawForm.iban}`
+        : `Name: ${withdrawForm.accountName}, Number: ${withdrawForm.accountNumber}`;
+
       await addDoc(collection(db, 'withdrawals'), {
         userId: user.uid,
         userName: user.displayName,
         amount,
         method: withdrawForm.method,
-        details: withdrawForm.details,
+        details,
         status: 'pending',
         createdAt: serverTimestamp()
       });
 
       await updateDoc(doc(db, 'users', user.uid), {
-        coins: 0
+        coins: user.coins - amount
       });
 
       // Notify Admin
@@ -1217,11 +1239,17 @@ const Dashboard = () => {
         userEmail: user.email,
         amount,
         method: withdrawForm.method,
-        details: withdrawForm.details
+        details
       });
 
       toast.success('Withdrawal request submitted!');
-      setWithdrawForm({ method: 'JazzCash', details: '' });
+      setWithdrawForm({ 
+        method: 'JazzCash', 
+        amount: '',
+        accountName: '',
+        accountNumber: '',
+        iban: ''
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'withdrawals');
     } finally {
@@ -1328,6 +1356,17 @@ const Dashboard = () => {
             </div>
             <form onSubmit={handleWithdraw} className="space-y-4">
               <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Withdraw Amount (Coins)</label>
+                <input 
+                  type="number"
+                  placeholder={`Min: ${settings.minWithdrawal}`}
+                  value={withdrawForm.amount}
+                  onChange={e => setWithdrawForm({ ...withdrawForm, amount: e.target.value })}
+                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Method</label>
                 <select 
                   value={withdrawForm.method}
@@ -1339,22 +1378,51 @@ const Dashboard = () => {
                   <option value="Bank">Bank Transfer</option>
                 </select>
               </div>
+              
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Account Details</label>
-                <textarea 
-                  placeholder="Enter account number or bank details..."
-                  value={withdrawForm.details}
-                  onChange={e => setWithdrawForm({ ...withdrawForm, details: e.target.value })}
-                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 min-h-[100px]"
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Account Holder Name</label>
+                <input 
+                  type="text"
+                  placeholder="Full name on account"
+                  value={withdrawForm.accountName}
+                  onChange={e => setWithdrawForm({ ...withdrawForm, accountName: e.target.value })}
+                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
                   required
                 />
               </div>
+
+              {withdrawForm.method === 'Bank' ? (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">IBAN Number</label>
+                  <input 
+                    type="text"
+                    placeholder="PK00XXXX..."
+                    value={withdrawForm.iban}
+                    onChange={e => setWithdrawForm({ ...withdrawForm, iban: e.target.value })}
+                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Account Number</label>
+                  <input 
+                    type="text"
+                    placeholder="03XXXXXXXXX"
+                    value={withdrawForm.accountNumber}
+                    onChange={e => setWithdrawForm({ ...withdrawForm, accountNumber: e.target.value })}
+                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                </div>
+              )}
+
               <button 
                 type="submit"
                 disabled={isWithdrawing || user.coins < settings.minWithdrawal}
                 className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all disabled:opacity-50 shadow-lg shadow-orange-100"
               >
-                {isWithdrawing ? 'Processing...' : `Withdraw ${user.coins.toFixed(0)} Coins`}
+                {isWithdrawing ? 'Processing...' : `Withdraw Coins`}
               </button>
               {user.coins < settings.minWithdrawal && (
                 <p className="text-[10px] text-red-500 text-center">Minimum withdrawal: {settings.minWithdrawal} coins</p>
@@ -1468,6 +1536,7 @@ const AdminPanel = () => {
   const { user, settings } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'posts' | 'withdrawals' | 'users' | 'settings'>('dashboard');
   const [pendingPosts, setPendingPosts] = useState<BlogPost[]>([]);
+  const [allPosts, setAllPosts] = useState<BlogPost[]>([]);
   const [pendingWithdrawals, setPendingWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [allWithdrawals, setAllWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -1482,6 +1551,10 @@ const AdminPanel = () => {
 
     const postsUnsub = onSnapshot(query(collection(db, 'posts'), where('status', '==', 'pending')), (snapshot) => {
       setPendingPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+    });
+
+    const allPostsUnsub = onSnapshot(collection(db, 'posts'), (snapshot) => {
+      setAllPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
     });
 
     const withdrawalsUnsub = onSnapshot(query(collection(db, 'withdrawals'), where('status', '==', 'pending')), (snapshot) => {
@@ -1509,6 +1582,7 @@ const AdminPanel = () => {
 
     return () => {
       postsUnsub();
+      allPostsUnsub();
       withdrawalsUnsub();
       usersUnsub();
       allWithdrawalsUnsub();
@@ -1586,6 +1660,12 @@ const AdminPanel = () => {
           const userData = userSnap.data();
           const finalStatus = status === 'approved' ? 'approved' : 'rejected';
           
+          if (status === 'cancelled') {
+            await updateDoc(userRef, {
+              coins: increment(withdrawalData.amount)
+            });
+          }
+
           // Notify User
           notifyUserWithdrawalStatus({
             userEmail: userData.email,
@@ -1890,21 +1970,100 @@ const AdminPanel = () => {
 
         {activeTab === 'posts' && (
           <div className="p-8">
-            <h2 className="text-xl font-bold mb-6">Pending Approvals ({pendingPosts.length})</h2>
-            <div className="space-y-4">
-              {pendingPosts.map(post => (
-                <div key={post.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                  <div>
-                    <h4 className="font-bold text-gray-900">{post.title}</h4>
-                    <p className="text-xs text-gray-500">By {post.authorName} • {post.category}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handlePostAction(post.id, 'approved')} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all"><Check className="w-5 h-5" /></button>
-                    <button onClick={() => handlePostAction(post.id, 'rejected')} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"><Ban className="w-5 h-5" /></button>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Manage Content</h2>
+              <div className="flex gap-4">
+                <div className="bg-orange-50 px-4 py-2 rounded-xl">
+                  <span className="text-xs font-bold text-orange-600 uppercase">Pending: {pendingPosts.length}</span>
+                </div>
+                <div className="bg-blue-50 px-4 py-2 rounded-xl">
+                  <span className="text-xs font-bold text-blue-600 uppercase">Total: {allPosts.length}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              {pendingPosts.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Pending Approvals</h3>
+                  <div className="space-y-4">
+                    {pendingPosts.map(post => (
+                      <div key={post.id} className="flex items-center justify-between p-4 bg-white border border-orange-100 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-4">
+                          {post.thumbnail && (
+                            <img src={post.thumbnail} alt="" className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                          )}
+                          <div>
+                            <h4 className="font-bold text-gray-900">{post.title}</h4>
+                            <p className="text-xs text-gray-500">By {post.authorName} • {post.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handlePostAction(post.id, 'approved')}
+                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                          >
+                            <Check className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handlePostAction(post.id, 'rejected')}
+                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-              {pendingPosts.length === 0 && <p className="text-center text-gray-400">No pending posts.</p>}
+              )}
+
+              <div>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">All Published Stories</h3>
+                <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Story</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Author</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Category</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Views</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {allPosts.sort((a, b) => b.views - a.views).map(post => (
+                        <tr key={post.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-gray-900 line-clamp-1">{post.title}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{post.authorName}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded-lg text-gray-600">{post.category}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-600">
+                              <Eye className="w-4 h-4" />
+                              <span className="text-sm font-bold">{post.views}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
+                              post.status === 'approved' ? 'bg-green-100 text-green-600' : 
+                              post.status === 'pending' ? 'bg-orange-100 text-orange-600' : 
+                              'bg-red-100 text-red-600'
+                            }`}>
+                              {post.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
