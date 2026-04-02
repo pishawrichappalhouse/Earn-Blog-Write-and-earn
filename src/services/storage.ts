@@ -93,7 +93,7 @@ const INITIAL_DATA: AppData = {
     withdrawalHistory: [],
   },
   adsenseConfig: {
-    publisherId: 'ca-pub-7554219557678246',
+    publisherId: 'ca-pub-6776734432817673',
     isEnabled: true,
   }
 };

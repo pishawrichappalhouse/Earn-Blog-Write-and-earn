@@ -1,2 +1,1 @@
-# Ads.txt for BloggerPro – ensures only authorized ad sellers
 google.com, pub-6776734432817673, DIRECT, f08c47fec0942fa0
