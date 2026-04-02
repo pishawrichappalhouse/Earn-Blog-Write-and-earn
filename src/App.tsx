@@ -1845,11 +1845,15 @@ const AdminPanel = () => {
     }
   };
 
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [withdrawalToReject, setWithdrawalToReject] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('Minimum withdrawal criteria not met');
+
   const handleDeletePost = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
     try {
       await deleteDoc(doc(db, 'posts', id));
       toast.success('Post deleted successfully');
+      setPostToDelete(null);
     } catch (error) {
       toast.error('Failed to delete post');
       console.error(error);
@@ -1858,11 +1862,6 @@ const AdminPanel = () => {
 
   const handleWithdrawalAction = async (id: string, status: 'approved' | 'cancelled') => {
     try {
-      let rejectionReason = '';
-      if (status === 'cancelled') {
-        rejectionReason = window.prompt('Please enter the reason for rejection:', 'Minimum withdrawal criteria not met') || 'Reason not specified';
-      }
-
       const withdrawalRef = doc(db, 'withdrawals', id);
       const withdrawalSnap = await getDoc(withdrawalRef);
       
@@ -1917,6 +1916,7 @@ const AdminPanel = () => {
         }
       }
       toast.success(`Withdrawal ${status}!`);
+      setWithdrawalToReject(null);
     } catch (error) {
       toast.error('Failed to update withdrawal status');
       console.error(error);
@@ -2291,13 +2291,32 @@ const AdminPanel = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => handleDeletePost(post.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                              title="Delete Post"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {postToDelete === post.id ? (
+                                <div className="flex items-center gap-2 bg-red-50 p-1 rounded-lg">
+                                  <button 
+                                    onClick={() => handleDeletePost(post.id)}
+                                    className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button 
+                                    onClick={() => setPostToDelete(null)}
+                                    className="px-2 py-1 bg-gray-200 text-gray-600 text-[10px] font-bold rounded hover:bg-gray-300"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setPostToDelete(post.id)}
+                                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Delete Post"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2322,8 +2341,41 @@ const AdminPanel = () => {
                         <p className="text-sm text-orange-600 font-bold">{req.amount} Coins</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => handleWithdrawalAction(req.id, 'approved')} className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700">Approve</button>
-                        <button onClick={() => handleWithdrawalAction(req.id, 'cancelled')} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700">Cancel</button>
+                        {withdrawalToReject === req.id ? (
+                          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full space-y-6 shadow-2xl">
+                              <h3 className="text-xl font-bold text-gray-900">Reject Withdrawal</h3>
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Reason for Rejection</label>
+                                <textarea 
+                                  value={rejectionReason}
+                                  onChange={(e) => setRejectionReason(e.target.value)}
+                                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-gray-900"
+                                  rows={3}
+                                />
+                              </div>
+                              <div className="flex gap-4">
+                                <button 
+                                  onClick={() => handleWithdrawalAction(req.id, 'cancelled')}
+                                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all"
+                                >
+                                  Confirm Rejection
+                                </button>
+                                <button 
+                                  onClick={() => setWithdrawalToReject(null)}
+                                  className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <button onClick={() => handleWithdrawalAction(req.id, 'approved')} className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700">Approve</button>
+                            <button onClick={() => setWithdrawalToReject(req.id)} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700">Cancel</button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-xs">
