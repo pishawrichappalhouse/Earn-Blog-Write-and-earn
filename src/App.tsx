@@ -1425,7 +1425,7 @@ const Dashboard = () => {
       });
 
       await updateDoc(doc(db, 'users', user.uid), {
-        coins: user.coins - amount
+        coins: increment(-amount)
       });
 
       // Notify Admin

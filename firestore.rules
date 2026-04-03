@@ -151,13 +151,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
                     (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && request.auth.token.email == "pishawrichappalhouse@gmail.com" && request.auth.token.email_verified == true));
       allow update: if isAuthenticated() && (
-        (isOwner(userId) && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']) &&
-         isValidUser(request.resource.data)) ||
         isAdmin() ||
-        // Allow coin updates from views (if authenticated)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coins', 'totalEarned']) && 
-         request.resource.data.coins >= resource.data.coins)
+        (isOwner(userId) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned']) &&
+         isValidUser(request.resource.data))
       );
     }
 
