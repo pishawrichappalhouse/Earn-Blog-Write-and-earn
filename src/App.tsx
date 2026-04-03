@@ -658,7 +658,7 @@ const pushedElements = new WeakSet<HTMLElement>();
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const location = useLocation();
-  const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-6776734432817673';
+  const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-7554219557678246';
   const slotId = import.meta.env.VITE_ADSENSE_SLOT_ID || '3774238446';
   const adRef = React.useRef<HTMLModElement>(null);
   
