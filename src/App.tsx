@@ -109,8 +109,12 @@ interface WithdrawalRequest {
   id: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   amount: number;
   method: 'JazzCash' | 'EasyPaisa' | 'Bank';
+  accountName: string;
+  accountNumber?: string;
+  iban?: string;
   details: string;
   status: 'pending' | 'approved' | 'cancelled';
   rejectionReason?: string;
@@ -1409,8 +1413,12 @@ const Dashboard = () => {
       await addDoc(collection(db, 'withdrawals'), {
         userId: user.uid,
         userName: user.displayName,
+        userEmail: user.email,
         amount,
         method: withdrawForm.method,
+        accountName: withdrawForm.accountName,
+        accountNumber: withdrawForm.accountNumber || '',
+        iban: withdrawForm.iban || '',
         details,
         status: 'pending',
         createdAt: serverTimestamp()
@@ -1426,6 +1434,9 @@ const Dashboard = () => {
         userEmail: user.email,
         amount,
         method: withdrawForm.method,
+        accountName: withdrawForm.accountName,
+        accountNumber: withdrawForm.accountNumber,
+        iban: withdrawForm.iban,
         details
       });
 
@@ -1510,6 +1521,7 @@ const Dashboard = () => {
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Method</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Account Details</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                   </tr>
                 </thead>
@@ -1519,6 +1531,10 @@ const Dashboard = () => {
                       <td className="px-6 py-4 text-sm text-gray-600">{req.createdAt?.toDate ? format(req.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</td>
                       <td className="px-6 py-4 text-sm font-bold text-gray-900">{req.amount} Coins</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{req.method}</td>
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        <div className="font-bold text-gray-700">{req.accountName}</div>
+                        <div>{req.method === 'Bank' ? req.iban : req.accountNumber}</div>
+                      </td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest",
@@ -2378,14 +2394,18 @@ const AdminPanel = () => {
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-3 gap-4 text-xs">
                       <div>
                         <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Method</p>
                         <p className="text-gray-900 font-medium">{req.method}</p>
                       </div>
                       <div>
-                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Details</p>
-                        <p className="text-gray-900 font-medium">{req.details}</p>
+                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">Account Holder</p>
+                        <p className="text-gray-900 font-medium">{req.accountName}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 uppercase tracking-widest font-bold mb-1">{req.method === 'Bank' ? 'IBAN' : 'Number'}</p>
+                        <p className="text-gray-900 font-medium">{req.method === 'Bank' ? req.iban : req.accountNumber}</p>
                       </div>
                     </div>
                   </div>
@@ -2403,6 +2423,7 @@ const AdminPanel = () => {
                       <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Method</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Account Info</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Date</th>
                     </tr>
@@ -2411,7 +2432,8 @@ const AdminPanel = () => {
                     {allWithdrawals.filter(w => w.status !== 'pending').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(req => (
                       <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
-                          <span className="text-sm font-bold text-gray-900">{req.userName}</span>
+                          <div className="text-sm font-bold text-gray-900">{req.userName}</div>
+                          <div className="text-[10px] text-gray-400">{req.userEmail}</div>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-bold text-orange-600">{req.amount} Coins</span>
@@ -2420,13 +2442,10 @@ const AdminPanel = () => {
                           <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded-lg text-gray-600">{req.method}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
-                            req.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                          }`}>
-                            {req.status}
-                          </span>
+                          <div className="text-xs text-gray-700 font-bold">{req.accountName}</div>
+                          <div className="text-[10px] text-gray-500">{req.method === 'Bank' ? req.iban : req.accountNumber}</div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4">
                           <span className="text-xs text-gray-400">
                             {req.createdAt?.toDate ? format(req.createdAt.toDate(), 'MMM d, yyyy') : 'Unknown'}
                           </span>

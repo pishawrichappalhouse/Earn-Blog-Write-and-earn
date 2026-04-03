@@ -11,6 +11,9 @@ export const notifyAdminNewWithdrawal = async (data: {
   userEmail: string;
   amount: number;
   method: string;
+  accountName: string;
+  accountNumber?: string;
+  iban?: string;
   details: string;
 }) => {
   try {
@@ -24,8 +27,10 @@ export const notifyAdminNewWithdrawal = async (data: {
         user_email: data.userEmail,
         amount: data.amount,
         method: data.method,
+        account_name: data.accountName,
+        account_number: data.accountNumber || data.iban || 'N/A',
         details: data.details,
-        message: `New withdrawal request of ${data.amount} coins from ${data.userName}.`
+        message: `New withdrawal request of ${data.amount} coins from ${data.userName}. Account: ${data.accountName} (${data.method})`
       },
       PUBLIC_KEY
     );
