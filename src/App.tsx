@@ -45,7 +45,8 @@ import {
   Database,
   Users,
   Edit2,
-  Mail
+  Mail,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -452,8 +453,8 @@ const Membership = () => {
     <div className="max-w-7xl mx-auto px-4 py-20">
       <MembershipNotice />
       <div className="text-center mb-16 mt-8">
-        <h1 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">Membership Plans</h1>
-        <p className="text-gray-500 max-w-2xl mx-auto text-lg leading-relaxed">
+        <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Membership Plans</h1>
+        <p className="text-gray-500 max-w-2xl mx-auto text-base leading-relaxed">
           Upgrade your account to unlock premium features and start sharing your insights with the world.
         </p>
       </div>
@@ -464,20 +465,20 @@ const Membership = () => {
             key={plan.name}
             whileHover={{ y: -10 }}
             className={cn(
-              "relative bg-white rounded-[40px] p-10 shadow-xl border-2 transition-all duration-300",
+              "relative bg-white rounded-[40px] p-8 shadow-xl border-2 transition-all duration-300",
               plan.recommended ? "border-orange-500 scale-105 z-10" : "border-gray-100 hover:border-gray-200"
             )}
           >
             {plan.recommended && (
-              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
                 Recommended
               </div>
             )}
             <div className="mb-8">
-              <h3 className="text-2xl font-black text-gray-900 mb-2">{plan.name}</h3>
+              <h3 className="text-xl font-black text-gray-900 mb-2">{plan.name}</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-gray-900">Rs {plan.price}</span>
-                <span className="text-gray-400 font-bold uppercase text-xs tracking-widest">/ Lifetime</span>
+                <span className="text-3xl font-black text-gray-900">Rs {plan.price}</span>
+                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">/ Lifetime</span>
               </div>
             </div>
             <ul className="space-y-4 mb-10">
@@ -588,7 +589,7 @@ const Deposit = () => {
         'membership.plan': plan
       });
 
-      toast.success('Deposit submitted successfully! Waiting for admin approval.');
+      toast.success('Your Deposit Request Is Submited');
       navigate('/dashboard');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'deposits');
@@ -755,29 +756,38 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-12 h-12 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-orange-900/20 group-hover:scale-105 transition-transform duration-300">
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-xl shadow-orange-900/20 group-hover:scale-105 transition-transform duration-300">
                 B
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-extrabold tracking-tight text-white leading-none">BloggerPro</span>
-                <span className="text-[10px] text-orange-500 font-bold uppercase tracking-[0.2em] mt-1">Insights & Knowledge</span>
+                <span className="text-xl font-extrabold tracking-tight text-white leading-none">BloggerPro</span>
+                <span className="text-[8px] text-orange-500 font-bold uppercase tracking-[0.2em] mt-1">Insights & Knowledge</span>
               </div>
             </Link>
             
-            <div className="hidden lg:flex items-center gap-8">
-              <Link to="/" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Home</Link>
-              <Link to="/category/Technology" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Technology</Link>
-              <Link to="/category/Earning" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Earning</Link>
-              <Link to="/category/Education" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Education</Link>
-              <Link to="/category/Lifestyle" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Lifestyle</Link>
-              <Link to="/membership" className="text-sm font-bold text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1">
-                <Shield className="w-4 h-4" />
+            <div className="hidden lg:flex items-center gap-6">
+              <Link to="/" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">Home</Link>
+              
+              <div className="relative group/cat">
+                <button className="text-xs font-semibold text-gray-300 hover:text-white transition-colors flex items-center gap-1">
+                  Categories <ChevronDown className="w-3 h-3" />
+                </button>
+                <div className="absolute top-full left-0 mt-2 w-48 bg-[#1E293B] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all duration-200 py-2">
+                  <Link to="/category/Technology" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Technology</Link>
+                  <Link to="/category/Earning" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Earning</Link>
+                  <Link to="/category/Education" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Education</Link>
+                  <Link to="/category/Lifestyle" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Lifestyle</Link>
+                </div>
+              </div>
+
+              <Link to="/membership" className="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1">
+                <Shield className="w-3 h-3" />
                 Membership
               </Link>
-              <Link to="/about" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">About</Link>
-              <Link to="/contact" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Contact</Link>
-              <Link to="/privacy" className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">Privacy</Link>
+              <Link to="/about" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">About</Link>
+              <Link to="/contact" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">Contact</Link>
+              <Link to="/privacy" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">Privacy</Link>
             </div>
           </div>
 
@@ -805,8 +815,13 @@ const Navbar = () => {
                 <div className="h-8 w-[1px] bg-white/10 mx-1" />
                 {(user.role === 'admin' || user.membership?.status === 'approved') && (
                   <Link to="/dashboard" className="flex items-center gap-3 group">
-                    <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner">
+                    <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner relative">
                       {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
+                      {user.membership?.plan && user.membership?.status === 'approved' && (
+                        <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
+                          {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+                        </div>
+                      )}
                     </div>
                     <div className="hidden xl:block">
                       <div className="flex items-center gap-2">
@@ -886,17 +901,23 @@ const Navbar = () => {
           >
             <div className="px-4 py-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <Link to="/" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Home</Link>
-                <Link to="/category/Tech" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Tech</Link>
-                <Link to="/category/Earning" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">Earning</Link>
-                <Link to="/category/News" className="p-4 bg-white/5 rounded-2xl text-sm font-bold text-white text-center">News</Link>
+                <Link to="/" className="p-4 bg-white/5 rounded-2xl text-xs font-bold text-white text-center">Home</Link>
+                <Link to="/membership" className="p-4 bg-white/5 rounded-2xl text-xs font-bold text-orange-500 text-center">Membership</Link>
+                <Link to="/about" className="p-4 bg-white/5 rounded-2xl text-xs font-bold text-white text-center">About</Link>
+                <Link to="/contact" className="p-4 bg-white/5 rounded-2xl text-xs font-bold text-white text-center">Contact</Link>
+                <Link to="/privacy" className="p-4 bg-white/5 rounded-2xl text-xs font-bold text-white text-center col-span-2">Privacy</Link>
               </div>
               
               {user ? (
                 <div className="space-y-4 pt-4 border-t border-white/10">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden relative">
                       {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-gray-400 m-3" />}
+                      {user.membership?.plan && user.membership?.status === 'approved' && (
+                        <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
+                          {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="font-bold text-white">{user.displayName}</p>
@@ -1219,17 +1240,17 @@ const Home = () => {
       <AdBanner position="top" />
 
       {/* Hero Section */}
-      <section className="py-20 text-center space-y-8">
+      <section className="py-16 text-center space-y-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="space-y-4"
+          className="space-y-3"
         >
-          <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tight leading-tight">
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
             Learn, Explore, and <br />
             <span className="text-orange-600">Share Knowledge</span>
           </h1>
-          <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium">
+          <p className="text-lg text-gray-500 max-w-xl mx-auto font-medium">
             Discover insightful articles, expert opinions, and helpful guides from our global community of writers.
           </p>
         </motion.div>
@@ -1739,7 +1760,7 @@ const PostView = () => {
                   {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMMM d, yyyy') : 'Recently'}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight leading-tight">
+              <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">
                 {post.title}
               </h1>
               <div className="flex items-center gap-6 py-6 border-y border-gray-100">
@@ -1941,6 +1962,21 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto px-4 py-12">
       <AdBanner position="top" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-12 flex flex-col md:flex-row items-center gap-6 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm mb-8">
+          <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden relative border-4 border-white shadow-xl">
+            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-gray-300 m-6" />}
+            {user.membership?.plan && user.membership?.status === 'approved' && (
+              <div className="absolute top-0 right-0 bg-orange-600 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+              </div>
+            )}
+          </div>
+          <div className="text-center md:text-left">
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">{user.displayName}</h1>
+            <p className="text-gray-500 font-medium">{user.email}</p>
+          </div>
+        </div>
+
         <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-orange-600 mb-4">
@@ -1959,21 +1995,34 @@ const Dashboard = () => {
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-purple-600 mb-4">
               <div className="p-2 bg-purple-50 rounded-xl"><Shield className="w-5 h-5" /></div>
-              <span className="text-xs font-bold uppercase tracking-widest">Membership Plan</span>
+              <span className="text-xs font-bold uppercase tracking-widest">Membership Status</span>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{user.membership?.plan || 'No Plan'}</p>
-                <p className={cn(
-                  "text-[10px] font-black uppercase tracking-widest mt-1",
-                  user.membership?.status === 'approved' ? "text-green-500" : 
-                  user.membership?.status === 'pending' ? "text-orange-500" : "text-gray-400"
-                )}>
-                  {user.membership?.status || 'No Active Plan'}
-                </p>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xl font-bold text-gray-900">{user.membership?.plan || 'No Active Plan'}</p>
+                  <p className={cn(
+                    "text-[10px] font-black uppercase tracking-widest mt-1",
+                    user.membership?.status === 'approved' ? "text-green-500" : 
+                    user.membership?.status === 'pending' ? "text-orange-500" : "text-gray-400"
+                  )}>
+                    {user.membership?.status === 'approved' ? 'Active Membership' : 
+                     user.membership?.status === 'pending' ? 'Verification Pending' : 'No Membership Found'}
+                  </p>
+                </div>
+                {user.membership?.badge && (
+                  <span className="bg-orange-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                    {user.membership.badge}
+                  </span>
+                )}
               </div>
               {user.membership?.status !== 'approved' && (
-                <Link to="/membership" className="text-xs font-bold text-orange-600 hover:underline">Upgrade</Link>
+                <Link 
+                  to="/membership" 
+                  className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-700 transition-all text-center shadow-lg shadow-orange-100"
+                >
+                  {user.membership?.status === 'pending' ? 'View Other Plans' : 'Buy Membership Plan'}
+                </Link>
               )}
             </div>
           </div>
@@ -2563,7 +2612,7 @@ const AdminPanel = () => {
         // Add Notification
         await addDoc(collection(db, 'notifications'), {
           userId: depositData.userId,
-          title: 'Membership Approved!',
+          title: 'Your Deposit successfull',
           message: `Your ${depositData.planName} membership has been approved. You can now publish stories!`,
           type: 'post_approved', // Reusing type or add new one
           read: false,
@@ -2573,7 +2622,7 @@ const AdminPanel = () => {
         const userRef = doc(db, 'users', depositData.userId);
         await updateDoc(userRef, {
           'membership.status': 'none',
-          'membership.plan': 'Free'
+          'membership.plan': null
         });
 
         // Add Notification
@@ -2708,7 +2757,7 @@ const AdminPanel = () => {
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
           </h1>
           <p className="text-sm text-gray-500">Manage posts, withdrawals, and platform settings.</p>
@@ -3239,6 +3288,58 @@ const AdminPanel = () => {
                 </div>
               )}
             </div>
+
+            <div className="mt-12 space-y-8">
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Deposit History</h2>
+              <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Plan</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">TRX ID</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {allDeposits.filter(d => d.status !== 'pending').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(deposit => (
+                      <tr key={deposit.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-8 py-4">
+                          <p className="text-sm font-bold text-gray-900">{deposit.userName}</p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className="text-xs font-bold text-orange-600 uppercase tracking-widest">{deposit.planName}</span>
+                        </td>
+                        <td className="px-8 py-4">
+                          <p className="text-sm font-bold text-gray-900">Rs {deposit.amount}</p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{deposit.trxId}</p>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
+                            deposit.status === 'approved' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                          )}>
+                            {deposit.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-4 text-right">
+                          <span className="text-xs text-gray-400">
+                            {deposit.createdAt?.toDate ? format(deposit.createdAt.toDate(), 'MMM d, yyyy') : 'Unknown'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {allDeposits.filter(d => d.status !== 'pending').length === 0 && (
+                  <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest">No deposit history found.</div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -3532,10 +3633,10 @@ const Auth = () => {
         className="max-w-md w-full bg-white p-10 rounded-[40px] border border-gray-100 shadow-2xl shadow-orange-100/50"
       >
         <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-xl shadow-orange-200">
+          <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-xl shadow-orange-200">
             B
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
