@@ -105,6 +105,8 @@ interface BlogPost {
   content: string;
   authorId: string;
   authorName: string;
+  authorBadge?: string;
+  authorRole?: string;
   category: string;
   thumbnail?: string;
   views: number;
@@ -470,7 +472,7 @@ const Membership = () => {
             )}
           >
             {plan.recommended && (
-              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg badge-shine">
                 Recommended
               </div>
             )}
@@ -710,6 +712,30 @@ const Deposit = () => {
   );
 };
 
+const AuthorBadge = ({ badge, role, className }: { badge?: string; role?: string; className?: string }) => {
+  if (role === 'admin') {
+    return (
+      <span className={cn(
+        "bg-purple-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter badge-shine",
+        className
+      )}>
+        Blogger Pro Admin
+      </span>
+    );
+  }
+  if (badge) {
+    return (
+      <span className={cn(
+        "bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter badge-shine",
+        className
+      )}>
+        {badge}
+      </span>
+    );
+  }
+  return null;
+};
+
 const Navbar = () => {
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -816,10 +842,12 @@ const Navbar = () => {
                 <div className="h-8 w-[1px] bg-white/10 mx-1" />
                 {(user.role === 'admin' || user.membership?.status === 'approved') && (
                   <Link to="/dashboard" className="flex items-center gap-3 group">
-                    <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner relative">
-                      {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
+                    <div className="w-10 h-10 rounded-full bg-white/10 border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner relative">
+                      <div className="w-full h-full rounded-full overflow-hidden">
+                        {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
+                      </div>
                       {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
-                        <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
+                        <div className="absolute -top-1 -right-1 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm badge-shine z-10">
                           {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
                         </div>
                       )}
@@ -828,11 +856,11 @@ const Navbar = () => {
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-bold text-white leading-none">{user.displayName}</p>
                         {user.role === 'admin' ? (
-                          <span className="bg-purple-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
+                          <span className="bg-purple-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter badge-shine">
                             Blogger Pro Admin
                           </span>
                         ) : user.membership?.badge && (
-                          <span className="bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
+                          <span className="bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter badge-shine">
                             {user.membership.badge}
                           </span>
                         )}
@@ -916,10 +944,12 @@ const Navbar = () => {
               {user ? (
                 <div className="space-y-4 pt-4 border-t border-white/10">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden relative">
-                      {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-gray-400 m-3" />}
+                    <div className="w-12 h-12 rounded-full bg-white/10 relative">
+                      <div className="w-full h-full rounded-full overflow-hidden">
+                        {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-gray-400 m-3" />}
+                      </div>
                       {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
-                        <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
+                        <div className="absolute -top-1 -right-1 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm badge-shine z-10">
                           {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
                         </div>
                       )}
@@ -1390,7 +1420,10 @@ const Home = () => {
                       <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
                         {post.authorName[0]}
                       </div>
-                      <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{post.authorName}</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{post.authorName}</span>
+                        <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 text-gray-400">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
@@ -1757,7 +1790,7 @@ const PostView = () => {
           >
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <span className="px-4 py-1.5 bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
+                <span className="px-4 py-1.5 bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full badge-shine">
                   {post.category}
                 </span>
                 <div className="w-1 h-1 bg-gray-300 rounded-full" />
@@ -1774,7 +1807,10 @@ const PostView = () => {
                     {post.authorName[0]}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{post.authorName}</p>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-gray-900">{post.authorName}</p>
+                      <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                    </div>
                     <p className="text-xs text-gray-400 font-medium">Author</p>
                   </div>
                 </div>
@@ -1968,10 +2004,12 @@ const Dashboard = () => {
       <AdBanner position="top" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-12 flex flex-col md:flex-row items-center gap-6 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm mb-8">
-          <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden relative border-4 border-white shadow-xl">
-            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-gray-300 m-6" />}
+          <div className="w-24 h-24 rounded-full bg-gray-100 relative border-4 border-white shadow-xl">
+            <div className="w-full h-full rounded-full overflow-hidden">
+              {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-gray-300 m-6" />}
+            </div>
             {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
-              <div className="absolute top-0 right-0 bg-orange-600 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+              <div className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg badge-shine z-10">
                 {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
               </div>
             )}
@@ -2016,11 +2054,11 @@ const Dashboard = () => {
                   </p>
                 </div>
                 {user.role === 'admin' ? (
-                  <span className="bg-purple-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                  <span className="bg-purple-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter badge-shine">
                     Blogger Pro Admin
                   </span>
                 ) : user.membership?.badge && (
-                  <span className="bg-orange-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                  <span className="bg-orange-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter badge-shine">
                     {user.membership.badge}
                   </span>
                 )}
@@ -2057,6 +2095,7 @@ const Dashboard = () => {
                     <h4 className="font-bold text-gray-900 line-clamp-1">{post.title}</h4>
                     <div className="flex items-center gap-4 mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                       <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {post.views}</span>
+                      <AuthorBadge badge={post.authorBadge} role={post.authorRole} />
                       <span className={cn(
                         "px-2 py-0.5 rounded",
                         post.status === 'approved' ? "bg-green-50 text-green-600" : 
@@ -2255,6 +2294,8 @@ const Editor = () => {
         ...form,
         authorId: user.uid,
         authorName: user.displayName,
+        authorBadge: user.membership?.badge || null,
+        authorRole: user.role,
         views: 0,
         status: isAdmin ? 'approved' : 'pending',
         createdAt: serverTimestamp()
@@ -2746,6 +2787,8 @@ const BPAPanel = () => {
             thumbnail: `https://picsum.photos/seed/${category}${i}/1200/800`,
             authorId: user?.uid || 'admin',
             authorName: user?.displayName || 'BPA',
+            authorBadge: user?.membership?.badge || null,
+            authorRole: user?.role || 'admin',
             status: 'approved',
             views: 0,
             createdAt: serverTimestamp(),
@@ -2996,7 +3039,10 @@ const BPAPanel = () => {
                           )}
                           <div>
                             <h4 className="font-bold text-gray-900">{post.title}</h4>
-                            <p className="text-xs text-gray-500">By {post.authorName} • {post.category}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-gray-500">By {post.authorName} • {post.category}</p>
+                              <AuthorBadge badge={post.authorBadge} role={post.authorRole} />
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -3073,7 +3119,10 @@ const BPAPanel = () => {
                             <span className="text-sm font-bold text-gray-900 line-clamp-1">{post.title}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-sm text-gray-600">{post.authorName}</span>
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-600">{post.authorName}</span>
+                              <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded-lg text-gray-600">{post.category}</span>
@@ -3445,7 +3494,7 @@ const BPAPanel = () => {
                       ) : (
                         <div className="flex items-center gap-2">
                           {u.membership?.badge ? (
-                            <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter border border-orange-200">
+                            <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter border border-orange-200 badge-shine">
                               {u.membership.badge}
                             </span>
                           ) : (
@@ -3835,7 +3884,7 @@ const CategoryView = () => {
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm">
+                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm badge-shine">
                     {post.category}
                   </span>
                 </div>
@@ -3845,7 +3894,10 @@ const CategoryView = () => {
                   {post.title}
                 </h3>
                 <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{post.authorName}</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{post.authorName}</span>
+                    <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                  </div>
                   <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
                     <Eye className="w-3 h-3" /> {post.views}
                   </div>

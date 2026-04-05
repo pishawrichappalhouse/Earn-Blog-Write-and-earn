@@ -35,6 +35,36 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .badge-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .badge-shine::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -60%;
+    width: 20%;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.4);
+    transform: rotate(30deg);
+    transition: all 0.5s;
+    animation: shine 3s infinite linear;
+  }
+
+  @keyframes shine {
+    0% {
+      left: -60%;
+    }
+    20% {
+      left: 120%;
+    }
+    100% {
+      left: 120%;
+    }
+  }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
