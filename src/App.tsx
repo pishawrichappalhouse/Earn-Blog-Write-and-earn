@@ -818,16 +818,20 @@ const Navbar = () => {
                   <Link to="/dashboard" className="flex items-center gap-3 group">
                     <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner relative">
                       {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
-                      {user.membership?.plan && user.membership?.status === 'approved' && (
+                      {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
                         <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
-                          {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+                          {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
                         </div>
                       )}
                     </div>
                     <div className="hidden xl:block">
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-bold text-white leading-none">{user.displayName}</p>
-                        {user.membership?.badge && (
+                        {user.role === 'admin' ? (
+                          <span className="bg-purple-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
+                            Blogger Pro Admin
+                          </span>
+                        ) : user.membership?.badge && (
                           <span className="bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
                             {user.membership.badge}
                           </span>
@@ -914,9 +918,9 @@ const Navbar = () => {
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden relative">
                       {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-gray-400 m-3" />}
-                      {user.membership?.plan && user.membership?.status === 'approved' && (
+                      {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
                         <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#0F172A] shadow-sm">
-                          {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+                          {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
                         </div>
                       )}
                     </div>
@@ -1966,9 +1970,9 @@ const Dashboard = () => {
         <div className="lg:col-span-12 flex flex-col md:flex-row items-center gap-6 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm mb-8">
           <div className="w-24 h-24 rounded-full bg-gray-100 overflow-hidden relative border-4 border-white shadow-xl">
             {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-gray-300 m-6" />}
-            {user.membership?.plan && user.membership?.status === 'approved' && (
+            {(user.role === 'admin' || (user.membership?.plan && user.membership?.status === 'approved')) && (
               <div className="absolute top-0 right-0 bg-orange-600 text-white text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-                {user.membership.plan === 'Pro' ? 'P' : user.membership.plan === 'Super Pro' ? 'SP' : 'LP'}
+                {user.role === 'admin' ? 'BPA' : (user.membership?.plan === 'Pro' ? 'P' : user.membership?.plan === 'Super Pro' ? 'SP' : 'LP')}
               </div>
             )}
           </div>
@@ -2011,7 +2015,11 @@ const Dashboard = () => {
                      user.membership?.status === 'pending' ? 'Verification Pending' : 'No Membership Found'}
                   </p>
                 </div>
-                {user.membership?.badge && (
+                {user.role === 'admin' ? (
+                  <span className="bg-purple-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                    Blogger Pro Admin
+                  </span>
+                ) : user.membership?.badge && (
                   <span className="bg-orange-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
                     {user.membership.badge}
                   </span>
