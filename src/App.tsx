@@ -496,16 +496,17 @@ const Membership = () => {
             </ul>
             <button
               onClick={() => navigate(`/deposit?plan=${plan.name}`)}
-              disabled={user?.membership?.plan === plan.name}
+              disabled={user?.membership?.plan === plan.name && user?.membership?.status !== 'none'}
               className={cn(
                 "w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 shadow-lg",
                 plan.recommended 
                   ? "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-200" 
                   : "bg-gray-900 text-white hover:bg-gray-800 shadow-gray-200",
-                user?.membership?.plan === plan.name && "opacity-50 cursor-not-allowed"
+                user?.membership?.plan === plan.name && user?.membership?.status !== 'none' && "opacity-50 cursor-not-allowed"
               )}
             >
-              {user?.membership?.plan === plan.name ? 'Current Plan' : 'Select Plan'}
+              {user?.membership?.plan === plan.name && user?.membership?.status === 'approved' ? 'Current Plan' : 
+               user?.membership?.plan === plan.name && user?.membership?.status === 'pending' ? 'Pending Approval' : 'Select Plan'}
             </button>
           </motion.div>
         ))}
@@ -700,7 +701,7 @@ const Deposit = () => {
               {isSubmitting ? 'Submitting...' : 'Submit Deposit'}
             </button>
             <p className="text-center text-xs text-gray-400 font-bold uppercase tracking-widest mt-6">
-              Plan will be activated after admin approval
+              Plan will be activated after BPA approval
             </p>
           </div>
         </form>
@@ -858,10 +859,10 @@ const Navbar = () => {
                   <Link 
                     to="/admin" 
                     className="p-2.5 bg-purple-600/20 text-purple-400 rounded-xl hover:bg-purple-600/30 transition-all border border-purple-500/30 flex items-center gap-2 relative"
-                    title="Admin Panel"
+                    title="BPA Panel"
                   >
                     <Shield className="w-5 h-5" />
-                    <span className="text-xs font-bold hidden xl:block">Admin</span>
+                    <span className="text-xs font-bold hidden xl:block">BPA</span>
                     {pendingCount > 0 && (
                       <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0F172A] animate-pulse">
                         {pendingCount}
@@ -927,7 +928,7 @@ const Navbar = () => {
                   {user.role === 'admin' && (
                     <Link to="/admin" className="flex items-center justify-between p-4 bg-purple-600/20 rounded-2xl text-purple-400 font-bold border border-purple-500/30">
                       <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5" /> Admin Panel
+                        <Shield className="w-5 h-5" /> BPA Panel
                       </div>
                       {pendingCount > 0 && (
                         <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">
@@ -1929,7 +1930,7 @@ const Dashboard = () => {
         coins: increment(-amount)
       });
 
-      // Notify Admin
+      // Notify BPA
       notifyAdminNewWithdrawal({
         userName: user.displayName,
         userEmail: user.email,
@@ -2270,7 +2271,7 @@ const Editor = () => {
           <p className="text-gray-500 mb-10 max-w-md mx-auto text-lg leading-relaxed">
             You need an active membership plan to publish stories on BloggerPro. 
             {user?.membership?.status === 'pending' 
-              ? "Your deposit is currently under review. Please wait for admin approval."
+              ? "Your deposit is currently under review. Please wait for BPA approval."
               : "Upgrade your account today to start earning from your insights."}
           </p>
           {user?.membership?.status !== 'pending' && (
@@ -2355,7 +2356,7 @@ const Editor = () => {
   );
 };
 
-const AdminPanel = () => {
+const BPAPanel = () => {
   const { user, settings } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'posts' | 'withdrawals' | 'deposits' | 'users' | 'settings'>('dashboard');
   const [pendingPosts, setPendingPosts] = useState<BlogPost[]>([]);
@@ -2564,7 +2565,7 @@ const AdminPanel = () => {
             rejectionReason: status === 'cancelled' ? rejectionReason : undefined
           });
 
-          // Notify Admin
+          // Notify BPA
           notifyAdminWithdrawalProcessed({
             userEmail: userData.email,
             userName: userData.displayName,
@@ -2736,7 +2737,7 @@ const AdminPanel = () => {
             category: category,
             thumbnail: `https://picsum.photos/seed/${category}${i}/1200/800`,
             authorId: user?.uid || 'admin',
-            authorName: user?.displayName || 'Admin',
+            authorName: user?.displayName || 'BPA',
             status: 'approved',
             views: 0,
             createdAt: serverTimestamp(),
@@ -2758,7 +2759,7 @@ const AdminPanel = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <Shield className="w-8 h-8 text-purple-600" /> Admin Control Panel
+            <Shield className="w-8 h-8 text-purple-600" /> BPA Control Panel
           </h1>
           <p className="text-sm text-gray-500">Manage posts, withdrawals, and platform settings.</p>
         </div>
@@ -3299,6 +3300,7 @@ const AdminPanel = () => {
                       <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Plan</th>
                       <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Amount</th>
                       <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">TRX ID</th>
+                      <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Screenshot</th>
                       <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                       <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Date</th>
                     </tr>
@@ -3317,6 +3319,18 @@ const AdminPanel = () => {
                         </td>
                         <td className="px-8 py-4">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{deposit.trxId}</p>
+                        </td>
+                        <td className="px-8 py-4">
+                          {deposit.screenshotUrl ? (
+                            <button 
+                              onClick={() => window.open(deposit.screenshotUrl, '_blank')}
+                              className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline"
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest">No Image</span>
+                          )}
                         </td>
                         <td className="px-8 py-4">
                           <span className={cn(
@@ -3557,7 +3571,7 @@ const Auth = () => {
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
           membership: {
-            plan: 'Pro',
+            plan: null,
             status: 'none'
           },
           createdAt: serverTimestamp()
@@ -3602,7 +3616,7 @@ const Auth = () => {
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
           membership: {
-            plan: 'Pro', // Default to Pro but status none
+            plan: null, // Default to null
             status: 'none'
           },
           createdAt: serverTimestamp()
@@ -3860,7 +3874,7 @@ export default function App() {
               <Route path="/post/:id" element={<PostView />} />
               <Route path="/dashboard" element={<PlanGuard><Dashboard /></PlanGuard>} />
               <Route path="/create" element={<PlanGuard><Editor /></PlanGuard>} />
-              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin" element={<BPAPanel />} />
               <Route path="/login" element={<Auth />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
