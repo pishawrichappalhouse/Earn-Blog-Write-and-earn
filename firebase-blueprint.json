@@ -51,9 +51,13 @@
         "content": { "type": "string" },
         "authorId": { "type": "string" },
         "authorName": { "type": "string" },
+        "authorBadge": { "type": "string" },
+        "authorRole": { "type": "string" },
         "category": { "type": "string" },
         "thumbnail": { "type": "string" },
         "views": { "type": "number" },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -95,6 +99,8 @@
         "userId": { "type": "string" },
         "userName": { "type": "string" },
         "userPhoto": { "type": "string" },
+        "userBadge": { "type": "string" },
+        "userRole": { "type": "string" },
         "content": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

@@ -75,7 +75,9 @@ import {
   getDocs,
   deleteDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
 import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
@@ -110,6 +112,8 @@ interface BlogPost {
   category: string;
   thumbnail?: string;
   views: number;
+  likes?: number;
+  likedBy?: string[];
   status: 'pending' | 'approved' | 'rejected';
   createdAt: any;
 }
@@ -153,6 +157,8 @@ interface Comment {
   userId: string;
   userName: string;
   userPhoto?: string;
+  userBadge?: string;
+  userRole?: string;
   content: string;
   createdAt: any;
 }
@@ -240,6 +246,8 @@ const Comments = ({ postId }: { postId: string }) => {
         userId: user.uid,
         userName: user.displayName,
         userPhoto: user.photoURL || '',
+        userBadge: user.membership?.badge || null,
+        userRole: user.role,
         content: newComment.trim(),
         createdAt: serverTimestamp()
       });
@@ -320,11 +328,14 @@ const Comments = ({ postId }: { postId: string }) => {
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-gray-900 text-sm">{comment.userName}</span>
-                  <span className="text-xs text-gray-400">
-                    {comment.createdAt?.toDate ? format(comment.createdAt.toDate(), 'MMM d, h:mm a') : 'Just now'}
-                  </span>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900 text-sm">{comment.userName}</span>
+                    <AuthorBadge badge={comment.userBadge} role={comment.userRole} />
+                    <span className="text-xs text-gray-400">
+                      {comment.createdAt?.toDate ? format(comment.createdAt.toDate(), 'MMM d, h:mm a') : 'Just now'}
+                    </span>
+                  </div>
                 </div>
                 {(user?.role === 'admin' || user?.uid === comment.userId) && (
                   <button
@@ -1695,7 +1706,8 @@ const PostView = () => {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [popularPosts, setPopularPosts] = useState<BlogPost[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
-  const { settings } = useAuth();
+  const [comments, setComments] = useState<Comment[]>([]);
+  const { user, settings } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1721,9 +1733,19 @@ const PostView = () => {
         setPopularPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
       });
 
+      // Fetch comments for count
+      const commentsQ = query(
+        collection(db, 'posts', id, 'comments'),
+        orderBy('createdAt', 'desc')
+      );
+      const unsubComments = onSnapshot(commentsQ, (snap) => {
+        setComments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment)));
+      });
+
       return () => {
         unsubscribe();
         unsubPopular();
+        unsubComments();
       };
     }
   }, [id, navigate]);
@@ -1775,6 +1797,24 @@ const PostView = () => {
     incrementViews();
   }, [id, settings.coinValuePerView]);
 
+  const handleLike = async () => {
+    if (!user || !id) {
+      toast.error('Please sign in to like this story');
+      return;
+    }
+    const docRef = doc(db, 'posts', id);
+    const isLiked = post.likedBy?.includes(user.uid);
+    try {
+      await updateDoc(docRef, {
+        likes: increment(isLiked ? -1 : 1),
+        likedBy: isLiked ? arrayRemove(user.uid) : arrayUnion(user.uid)
+      });
+      toast.success(isLiked ? 'Unliked' : 'Liked!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${id}`);
+    }
+  };
+
   if (!post) return null;
 
   return (
@@ -1819,8 +1859,18 @@ const PostView = () => {
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
                     <Eye className="w-4 h-4" /> {post.views} Views
                   </div>
+                  <button 
+                    onClick={handleLike}
+                    className={cn(
+                      "flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all",
+                      post.likedBy?.includes(user?.uid || '') ? "text-orange-600" : "hover:text-orange-500"
+                    )}
+                  >
+                    <ThumbsUp className={cn("w-4 h-4", post.likedBy?.includes(user?.uid || '') && "fill-current")} /> 
+                    {post.likes || 0} Likes
+                  </button>
                   <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-                    <MessageSquare className="w-4 h-4" /> 12 Comments
+                    <MessageSquare className="w-4 h-4" /> {comments.length} Comments
                   </div>
                 </div>
               </div>
@@ -1843,7 +1893,26 @@ const PostView = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-4 py-10 border-t border-gray-100">
+            <div className="flex flex-col items-center gap-6 py-12 border-y border-gray-100">
+              <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Did you enjoy this story?</p>
+              <button 
+                onClick={handleLike}
+                className={cn(
+                  "flex items-center gap-3 px-10 py-5 rounded-[30px] font-black text-lg transition-all duration-300 shadow-xl hover:scale-105 active:scale-95 badge-shine",
+                  post.likedBy?.includes(user?.uid || '') 
+                    ? "bg-orange-600 text-white shadow-orange-200" 
+                    : "bg-white text-gray-900 border-2 border-gray-100 hover:border-orange-500 hover:text-orange-600"
+                )}
+              >
+                <ThumbsUp className={cn("w-6 h-6", post.likedBy?.includes(user?.uid || '') && "fill-current")} />
+                {post.likedBy?.includes(user?.uid || '') ? 'Liked!' : 'Like this Story'}
+                <span className="ml-2 px-3 py-1 bg-black/10 rounded-full text-sm">
+                  {post.likes || 0}
+                </span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 py-10">
               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Share this story:</span>
               <div className="flex gap-3">
                 {['Facebook', 'Twitter', 'LinkedIn', 'WhatsApp'].map(platform => (
@@ -2297,6 +2366,8 @@ const Editor = () => {
         authorBadge: user.membership?.badge || null,
         authorRole: user.role,
         views: 0,
+        likes: 0,
+        likedBy: [],
         status: isAdmin ? 'approved' : 'pending',
         createdAt: serverTimestamp()
       });
@@ -2791,6 +2862,8 @@ const BPAPanel = () => {
             authorRole: user?.role || 'admin',
             status: 'approved',
             views: 0,
+            likes: 0,
+            likedBy: [],
             createdAt: serverTimestamp(),
           };
           await addDoc(collection(db, 'posts'), postData);

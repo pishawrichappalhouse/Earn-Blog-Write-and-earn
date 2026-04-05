@@ -125,7 +125,7 @@ service cloud.firestore {
 
     function isValidPost(data) {
       let requiredFields = ['title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt'];
-      let optionalFields = ['thumbnail'];
+      let optionalFields = ['thumbnail', 'authorBadge', 'authorRole', 'likes', 'likedBy'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
@@ -136,7 +136,11 @@ service cloud.firestore {
              data.views is number && data.views >= 0 &&
              data.status in ['pending', 'approved', 'rejected'] &&
              (data.createdAt is timestamp || data.createdAt == request.time) &&
-             (!('thumbnail' in data) || (data.thumbnail is string));
+             (!('thumbnail' in data) || (data.thumbnail is string)) &&
+             (!('authorBadge' in data) || (data.authorBadge is string || data.authorBadge == null)) &&
+             (!('authorRole' in data) || (data.authorRole is string)) &&
+             (!('likes' in data) || (data.likes is number)) &&
+             (!('likedBy' in data) || (data.likedBy is list));
     }
 
     function isValidWithdrawal(data) {
@@ -151,12 +155,18 @@ service cloud.firestore {
     }
 
     function isValidComment(data) {
-      return data.keys().hasAll(['postId', 'userId', 'userName', 'content', 'createdAt']) &&
+      let requiredFields = ['postId', 'userId', 'userName', 'content', 'createdAt'];
+      let optionalFields = ['userPhoto', 'userBadge', 'userRole'];
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.postId is string && data.postId.size() > 0 &&
              data.userId is string && data.userId == request.auth.uid &&
              data.userName is string && data.userName.size() > 0 &&
              data.content is string && data.content.size() >= 1 && data.content.size() <= 1000 &&
-             (data.createdAt is timestamp || data.createdAt == request.time);
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('userPhoto' in data) || (data.userPhoto is string)) &&
+             (!('userBadge' in data) || (data.userBadge is string || data.userBadge == null)) &&
+             (!('userRole' in data) || (data.userRole is string));
     }
 
     function isValidNotification(data) {
@@ -196,7 +206,25 @@ service cloud.firestore {
         (isOwner(resource.data.authorId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'category', 'thumbnail']) &&
          isValidPost(request.resource.data)) ||
-        isAdmin()
+        isAdmin() ||
+        (
+          // Allow liking/unliking
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
+          (
+            // Like: increment by 1, and add current user to likedBy
+            (request.resource.data.likes == (resource.data.get('likes', 0) + 1) && 
+             request.resource.data.likedBy.size() == (resource.data.get('likedBy', []).size() + 1) &&
+             request.resource.data.likedBy.hasAll(resource.data.get('likedBy', [])) &&
+             request.auth.uid in request.resource.data.likedBy &&
+             !(request.auth.uid in resource.data.get('likedBy', []))) ||
+            // Unlike: decrement by 1, and remove current user from likedBy
+            (request.resource.data.likes == (resource.data.get('likes', 0) - 1) && 
+             request.resource.data.likedBy.size() == (resource.data.get('likedBy', []).size() - 1) &&
+             resource.data.get('likedBy', []).hasAll(request.resource.data.likedBy) &&
+             !(request.auth.uid in request.resource.data.likedBy) &&
+             request.auth.uid in resource.data.get('likedBy', []))
+          )
+        )
       )) || (
         // Allow public view increment (atomic increment)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) && 
