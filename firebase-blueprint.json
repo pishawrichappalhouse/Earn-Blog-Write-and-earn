@@ -12,9 +12,34 @@
         "coins": { "type": "number", "description": "Current coins balance" },
         "totalEarned": { "type": "number", "description": "Total coins earned ever" },
         "role": { "type": "string", "enum": ["user", "admin"] },
+        "membership": {
+          "type": "object",
+          "properties": {
+            "plan": { "type": "string", "enum": ["Free", "Pro", "Super Pro", "Legend Pro"] },
+            "status": { "type": "string", "enum": ["none", "pending", "approved"] },
+            "badge": { "type": "string" }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "coins", "totalEarned", "role", "createdAt"]
+    },
+    "Deposit": {
+      "title": "Deposit",
+      "description": "A deposit request for membership upgrade",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "planName": { "type": "string", "enum": ["Pro", "Super Pro", "Legend Pro"] },
+        "amount": { "type": "number" },
+        "trxId": { "type": "string", "description": "Transaction ID" },
+        "screenshotUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "planName", "amount", "trxId", "screenshotUrl", "status", "createdAt"]
     },
     "BlogPost": {
       "title": "Blog Post",
@@ -96,6 +121,7 @@
     "/posts/{postId}": { "schema": "BlogPost", "description": "Blog posts" },
     "/posts/{postId}/comments/{commentId}": { "schema": "Comment", "description": "Comments on a blog post" },
     "/withdrawals/{requestId}": { "schema": "WithdrawalRequest", "description": "Withdrawal requests" },
+    "/deposits/{depositId}": { "schema": "Deposit", "description": "Membership deposit requests" },
     "/settings/global": { "schema": "PlatformSettings", "description": "Global platform settings" },
     "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" }
   }
