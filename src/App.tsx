@@ -2554,8 +2554,8 @@ const AdminPanel = () => {
   };
 
   const handleUpdateUserCoins = async (uid: string) => {
-    const adjustment = parseFloat(coinAdjustment);
-    if (isNaN(adjustment) || adjustment === 0) {
+    const newValue = parseFloat(coinAdjustment);
+    if (isNaN(newValue)) {
       toast.error('Please enter a valid number');
       return;
     }
@@ -2567,21 +2567,23 @@ const AdminPanel = () => {
         const currentCoins = userDoc.data().coins || 0;
         const currentTotalEarned = userDoc.data().totalEarned || 0;
         
-        const newCoins = Math.max(0, currentCoins + adjustment);
-        // Only increase totalEarned if adding coins
-        const newTotalEarned = adjustment > 0 ? currentTotalEarned + adjustment : currentTotalEarned;
+        const newCoins = Math.max(0, newValue);
+        const diff = newCoins - currentCoins;
+        
+        // Only increase totalEarned if we are adding coins
+        const newTotalEarned = diff > 0 ? currentTotalEarned + diff : currentTotalEarned;
         
         await updateDoc(userRef, { 
           coins: newCoins,
           totalEarned: newTotalEarned
         });
         
-        toast.success(`User coins updated!`);
+        toast.success(`User balance updated to ${newCoins}!`);
         setEditingUserCoins(null);
         setCoinAdjustment('0');
       }
     } catch (error) {
-      toast.error('Failed to update user coins');
+      toast.error('Failed to update user balance');
       console.error(error);
     }
   };
@@ -3142,7 +3144,7 @@ const AdminPanel = () => {
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Badge</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Coins</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Current Balance</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Total Earned</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
@@ -3240,7 +3242,7 @@ const AdminPanel = () => {
                             value={coinAdjustment}
                             onChange={(e) => setCoinAdjustment(e.target.value)}
                             className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                            placeholder="+/-"
+                            placeholder="New Balance"
                           />
                           <button 
                             onClick={() => handleUpdateUserCoins(u.uid)}
@@ -3278,11 +3280,11 @@ const AdminPanel = () => {
                       <button 
                         onClick={() => {
                           setEditingUserCoins(u.uid);
-                          setCoinAdjustment('0');
+                          setCoinAdjustment(u.coins.toString());
                         }}
                         className="text-xs font-bold text-orange-600 hover:text-orange-700"
                       >
-                        Adjust Coins
+                        Edit Balance
                       </button>
                     </td>
                   </tr>
