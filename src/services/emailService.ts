@@ -95,3 +95,30 @@ export const notifyAdminWithdrawalProcessed = async (data: {
     console.error('Failed to notify admin of processed withdrawal:', error);
   }
 };
+
+export const notifyUserPostStatus = async (data: {
+  userEmail: string;
+  userName: string;
+  postTitle: string;
+  status: 'approved' | 'rejected';
+  rejectionReason?: string;
+}) => {
+  try {
+    await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID_USER,
+      {
+        to_email: data.userEmail,
+        to_name: data.userName,
+        post_title: data.postTitle,
+        status: data.status,
+        reason: data.rejectionReason || 'N/A',
+        message: `Your story "${data.postTitle}" has been ${data.status}.${data.status === 'rejected' && data.rejectionReason ? ` Reason: ${data.rejectionReason}` : ''}`
+      },
+      PUBLIC_KEY
+    );
+    console.log('User notified of post status successfully');
+  } catch (error) {
+    console.error('Failed to notify user of post status:', error);
+  }
+};

@@ -77,7 +77,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
-import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed } from './services/emailService';
+import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
 import { cn } from './lib/utils';
 
 // --- Types ---
@@ -91,7 +91,7 @@ interface UserProfile {
   totalEarned: number;
   role: 'user' | 'admin';
   membership?: {
-    plan: 'Free' | 'Pro' | 'Super Pro' | 'Legend Pro';
+    plan?: 'Pro' | 'Super Pro' | 'Legend Pro' | null;
     status: 'none' | 'pending' | 'approved';
     badge?: string;
   };
@@ -395,6 +395,29 @@ const MembershipNotice = () => (
     </p>
   </div>
 );
+
+const PlanGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user && user.role !== 'admin' && user.membership?.status !== 'approved') {
+      navigate('/membership');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) return null;
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
+  
+  if (user.role !== 'admin' && user.membership?.status !== 'approved') {
+    return null;
+  }
+
+  return <>{children}</>;
+};
 
 const Membership = () => {
   const { user } = useAuth();
@@ -770,45 +793,51 @@ const Navbar = () => {
 
             {user ? (
               <div className="flex items-center gap-5">
-                <Link 
-                  to="/create" 
-                  className="bg-orange-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create
-                </Link>
+                {(user.role === 'admin' || user.membership?.status === 'approved') && (
+                  <Link 
+                    to="/create" 
+                    className="bg-orange-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create
+                  </Link>
+                )}
                 <div className="h-8 w-[1px] bg-white/10 mx-1" />
-                <Link to="/dashboard" className="flex items-center gap-3 group">
-                  <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner">
-                    {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
-                  </div>
-                  <div className="hidden xl:block">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-white leading-none">{user.displayName}</p>
-                      {user.membership?.badge && (
-                        <span className="bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
-                          {user.membership.badge}
+                {(user.role === 'admin' || user.membership?.status === 'approved') && (
+                  <Link to="/dashboard" className="flex items-center gap-3 group">
+                    <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-inner">
+                      {user.photoURL ? <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><User className="w-5 h-5" /></div>}
+                    </div>
+                    <div className="hidden xl:block">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-white leading-none">{user.displayName}</p>
+                        {user.membership?.badge && (
+                          <span className="bg-orange-600 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">
+                            {user.membership.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-orange-500 font-bold mt-1">{user.coins.toFixed(0)} Coins</p>
+                    </div>
+                  </Link>
+                )}
+
+                {(user.role === 'admin' || user.membership?.status === 'approved') && (
+                  <div className="relative">
+                    <Link 
+                      to="/dashboard" 
+                      className="p-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center"
+                      title="Notifications"
+                    >
+                      <Bell className="w-5 h-5" />
+                      {unreadNotifications > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0F172A]">
+                          {unreadNotifications}
                         </span>
                       )}
-                    </div>
-                    <p className="text-[10px] text-orange-500 font-bold mt-1">{user.coins.toFixed(0)} Coins</p>
+                    </Link>
                   </div>
-                </Link>
-
-                <div className="relative">
-                  <Link 
-                    to="/dashboard" 
-                    className="p-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center"
-                    title="Notifications"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {unreadNotifications > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#0F172A]">
-                        {unreadNotifications}
-                      </span>
-                    )}
-                  </Link>
-                </div>
+                )}
 
                 {user.role === 'admin' && (
                   <Link 
@@ -886,8 +915,12 @@ const Navbar = () => {
                       )}
                     </Link>
                   )}
-                  <Link to="/dashboard" className="block text-lg font-bold text-white">Dashboard</Link>
-                  <Link to="/create" className="block text-lg font-bold text-orange-500">Create Post</Link>
+                  {(user.role === 'admin' || user.membership?.status === 'approved') && (
+                    <>
+                      <Link to="/dashboard" className="block text-lg font-bold text-white">Dashboard</Link>
+                      <Link to="/create" className="block text-lg font-bold text-orange-500">Create Post</Link>
+                    </>
+                  )}
                   <button onClick={handleLogout} className="block text-lg font-bold text-red-500">Logout</button>
                 </div>
               ) : (
@@ -1150,6 +1183,7 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
+  const { user } = useAuth();
   const featuredPosts = posts.slice(0, 3);
   const latestPosts = posts.slice(3);
   const popularPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
@@ -1165,6 +1199,22 @@ const Home = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {user && user.role !== 'admin' && user.membership?.status !== 'approved' && (
+        <div className="mb-12 bg-orange-600 text-white p-8 rounded-[40px] shadow-2xl shadow-orange-200 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+              <Shield className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black mb-1 tracking-tight">Membership Required</h2>
+              <p className="text-orange-100 font-medium">Upgrade your account to start sharing stories and earning coins.</p>
+            </div>
+          </div>
+          <Link to="/membership" className="bg-white text-orange-600 px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-orange-50 transition-all shadow-xl">
+            View Plans
+          </Link>
+        </div>
+      )}
       <MembershipNotice />
       <AdBanner position="top" />
 
@@ -1913,7 +1963,7 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{user.membership?.plan || 'Free'}</p>
+                <p className="text-2xl font-bold text-gray-900">{user.membership?.plan || 'No Plan'}</p>
                 <p className={cn(
                   "text-[10px] font-black uppercase tracking-widest mt-1",
                   user.membership?.status === 'approved' ? "text-green-500" : 
@@ -2366,26 +2416,47 @@ const AdminPanel = () => {
 
   const { userGrowthData, payoutData } = getChartData();
 
-  const handlePostAction = async (id: string, status: 'approved' | 'rejected') => {
+  const handlePostAction = async (id: string, status: 'approved' | 'rejected', reason?: string) => {
     try {
       const postRef = doc(db, 'posts', id);
       const postSnap = await getDoc(postRef);
       if (!postSnap.exists()) return;
       const postData = postSnap.data();
 
-      await updateDoc(postRef, { status });
-      
-      // Add Notification
-      await addDoc(collection(db, 'notifications'), {
-        userId: postData.authorId,
-        title: `Story ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-        message: status === 'approved' ? `Your story "${postData.title}" has been published!` : `Your story "${postData.title}" was rejected.`,
-        type: status === 'approved' ? 'post_approved' : 'post_rejected',
-        read: false,
-        createdAt: serverTimestamp()
+      await updateDoc(postRef, { 
+        status,
+        rejectionReason: status === 'rejected' ? (reason || postRejectionReason) : null
       });
+      
+      // Get author email to notify
+      const userRef = doc(db, 'users', postData.authorId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        
+        // Notify User via Email
+        notifyUserPostStatus({
+          userEmail: userData.email,
+          userName: userData.displayName,
+          postTitle: postData.title,
+          status: status,
+          rejectionReason: status === 'rejected' ? (reason || postRejectionReason) : undefined
+        });
+
+        // Add In-App Notification
+        await addDoc(collection(db, 'notifications'), {
+          userId: postData.authorId,
+          title: `Story ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+          message: status === 'approved' ? `Your story "${postData.title}" has been published!` : `Your story "${postData.title}" was rejected. Reason: ${reason || postRejectionReason}`,
+          type: status === 'approved' ? 'post_approved' : 'post_rejected',
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
 
       toast.success(`Post ${status}!`);
+      setPostToReject(null);
     } catch (error) {
       toast.error('Failed to update post status');
       console.error(error);
@@ -2393,8 +2464,10 @@ const AdminPanel = () => {
   };
 
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [postToReject, setPostToReject] = useState<string | null>(null);
   const [withdrawalToReject, setWithdrawalToReject] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('Minimum withdrawal criteria not met');
+  const [postRejectionReason, setPostRejectionReason] = useState('Content does not meet our guidelines');
 
   const handleDeletePost = async (id: string) => {
     try {
@@ -2540,7 +2613,7 @@ const AdminPanel = () => {
         updateData['membership.plan'] = newBadge;
       } else if (!newBadge) {
         updateData['membership.status'] = 'none';
-        updateData['membership.plan'] = 'Free';
+        updateData['membership.plan'] = null;
       }
 
       await updateDoc(userRef, updateData);
@@ -2869,18 +2942,51 @@ const AdminPanel = () => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button 
-                            onClick={() => handlePostAction(post.id, 'approved')}
-                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                          >
-                            <Check className="w-5 h-5" />
-                          </button>
-                          <button 
-                            onClick={() => handlePostAction(post.id, 'rejected')}
-                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
+                          {postToReject === post.id ? (
+                            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                              <div className="bg-white rounded-3xl p-8 max-w-md w-full space-y-6 shadow-2xl">
+                                <h3 className="text-xl font-bold text-gray-900">Reject Story</h3>
+                                <div className="space-y-2">
+                                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Reason for Rejection</label>
+                                  <textarea 
+                                    value={postRejectionReason}
+                                    onChange={(e) => setPostRejectionReason(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-gray-900"
+                                    rows={3}
+                                  />
+                                </div>
+                                <div className="flex gap-4">
+                                  <button 
+                                    onClick={() => handlePostAction(post.id, 'rejected', postRejectionReason)}
+                                    className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all"
+                                  >
+                                    Confirm Rejection
+                                  </button>
+                                  <button 
+                                    onClick={() => setPostToReject(null)}
+                                    className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={() => handlePostAction(post.id, 'approved')}
+                                className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                              >
+                                <Check className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => setPostToReject(post.id)}
+                                className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                              >
+                                <X className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -3179,7 +3285,7 @@ const AdminPanel = () => {
                               }}
                               className="w-32 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
                             >
-                              <option value="">None (Remove)</option>
+                              <option value="">Reset Membership</option>
                               <option value="Pro">Pro (Plan 1)</option>
                               <option value="Super Pro">Super Pro (Plan 2)</option>
                               <option value="Legend Pro">Legend Pro (Plan 3)</option>
@@ -3349,6 +3455,10 @@ const Auth = () => {
           coins: 0,
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
+          membership: {
+            plan: 'Pro',
+            status: 'none'
+          },
           createdAt: serverTimestamp()
         });
       } else {
@@ -3358,7 +3468,16 @@ const Auth = () => {
           await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
         }
       }
-      navigate('/dashboard');
+
+      const userRef = doc(db, 'users', auth.currentUser!.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data() as UserProfile;
+      
+      if (userData.role === 'admin' || userData.membership?.status === 'approved') {
+        navigate('/dashboard');
+      } else {
+        navigate('/membership');
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -3381,12 +3500,24 @@ const Auth = () => {
           coins: 0,
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
+          membership: {
+            plan: 'Pro', // Default to Pro but status none
+            status: 'none'
+          },
           createdAt: serverTimestamp()
         });
       } else if (isAdmin) {
         await updateDoc(docRef, { role: 'admin' });
       }
-      navigate('/dashboard');
+      
+      // Check membership status
+      const updatedSnap = await getDoc(docRef);
+      const userData = updatedSnap.data() as UserProfile;
+      if (userData.role === 'admin' || userData.membership?.status === 'approved') {
+        navigate('/dashboard');
+      } else {
+        navigate('/membership');
+      }
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -3626,8 +3757,8 @@ export default function App() {
               <Route path="/deposit" element={<Deposit />} />
               <Route path="/category/:category" element={<CategoryView />} />
               <Route path="/post/:id" element={<PostView />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/create" element={<Editor />} />
+              <Route path="/dashboard" element={<PlanGuard><Dashboard /></PlanGuard>} />
+              <Route path="/create" element={<PlanGuard><Editor /></PlanGuard>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/login" element={<Auth />} />
               <Route path="/about" element={<About />} />
