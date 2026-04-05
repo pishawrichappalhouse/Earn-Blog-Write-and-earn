@@ -2525,15 +2525,28 @@ const AdminPanel = () => {
   const [editingUserBadge, setEditingUserBadge] = useState<string | null>(null);
   const [coinAdjustment, setCoinAdjustment] = useState<string>('0');
   const [newBadge, setNewBadge] = useState<string>('');
+  const [isCustomBadge, setIsCustomBadge] = useState(false);
 
   const handleUpdateUserBadge = async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, {
+      const updateData: any = {
         'membership.badge': newBadge || null
-      });
+      };
+      
+      // If setting a standard plan badge, also update status and plan
+      if (newBadge === 'Pro' || newBadge === 'Super Pro' || newBadge === 'Legend Pro') {
+        updateData['membership.status'] = 'approved';
+        updateData['membership.plan'] = newBadge;
+      } else if (!newBadge) {
+        updateData['membership.status'] = 'none';
+        updateData['membership.plan'] = 'Free';
+      }
+
+      await updateDoc(userRef, updateData);
       toast.success('User badge updated!');
       setEditingUserBadge(null);
+      setIsCustomBadge(false);
     } catch (error) {
       toast.error('Failed to update badge');
       console.error(error);
@@ -3151,26 +3164,52 @@ const AdminPanel = () => {
                     <td className="px-8 py-4 capitalize text-sm">{u.role}</td>
                     <td className="px-8 py-4">
                       {editingUserBadge === u.uid ? (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="text" 
-                            value={newBadge}
-                            onChange={(e) => setNewBadge(e.target.value)}
-                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                            placeholder="Badge name"
-                          />
-                          <button 
-                            onClick={() => handleUpdateUserBadge(u.uid)}
-                            className="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => setEditingUserBadge(null)}
-                            className="p-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                        <div className="flex flex-col gap-2">
+                          {!isCustomBadge ? (
+                            <select 
+                              value={['Pro', 'Super Pro', 'Legend Pro', ''].includes(newBadge) ? newBadge : 'custom'}
+                              onChange={(e) => {
+                                if (e.target.value === 'custom') {
+                                  setIsCustomBadge(true);
+                                } else {
+                                  setNewBadge(e.target.value);
+                                }
+                              }}
+                              className="w-32 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
+                            >
+                              <option value="">None (Remove)</option>
+                              <option value="Pro">Pro (Plan 1)</option>
+                              <option value="Super Pro">Super Pro (Plan 2)</option>
+                              <option value="Legend Pro">Legend Pro (Plan 3)</option>
+                              <option value="custom">Custom Badge...</option>
+                            </select>
+                          ) : (
+                            <input 
+                              type="text" 
+                              value={newBadge}
+                              onChange={(e) => setNewBadge(e.target.value)}
+                              className="w-32 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
+                              placeholder="Badge name"
+                              autoFocus
+                            />
+                          )}
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleUpdateUserBadge(u.uid)}
+                              className="flex-1 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setEditingUserBadge(null);
+                                setIsCustomBadge(false);
+                              }}
+                              className="flex-1 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center justify-center"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
