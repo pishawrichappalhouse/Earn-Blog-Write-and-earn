@@ -1345,7 +1345,10 @@ const Home = () => {
                     {featuredPosts[0].title}
                   </h3>
                   <div className="flex items-center gap-4 text-gray-300 text-sm font-medium">
-                    <span>{featuredPosts[0].authorName}</span>
+                    <div className="flex flex-col">
+                      <span>{featuredPosts[0].authorName}</span>
+                      <AuthorBadge badge={featuredPosts[0].authorBadge} role={featuredPosts[0].authorRole} className="mt-0.5" />
+                    </div>
                     <div className="w-1 h-1 bg-gray-500 rounded-full" />
                     <span>{featuredPosts[0].createdAt?.toDate ? format(featuredPosts[0].createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}</span>
                   </div>
@@ -1377,6 +1380,10 @@ const Home = () => {
                     <h3 className="text-xl font-bold text-white leading-snug line-clamp-2">
                       {post.title}
                     </h3>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{post.authorName}</span>
+                      <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                    </div>
                   </div>
                 </Link>
               </motion.div>
@@ -3732,6 +3739,7 @@ const Auth = () => {
 
   const handleGoogle = async () => {
     try {
+      setLoading(true);
       const { user } = await signInWithPopup(auth, googleProvider);
       const isAdmin = user.email === 'pishawrichappalhouse@gmail.com';
       const docRef = doc(db, 'users', user.uid);
@@ -3764,7 +3772,20 @@ const Auth = () => {
         navigate('/membership');
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Google Auth Error:', error);
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup blocked! Please allow popups for this site or open in a new tab.');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // Ignore user cancellation
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        // Ignore user closure
+      } else if (error.message.includes('cross-origin-isolated')) {
+        toast.error('Browser restriction detected. Please try opening the app in a new tab.');
+      } else {
+        toast.error(error.message || 'Authentication failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -3828,13 +3849,23 @@ const Auth = () => {
           </button>
         </form>
 
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
           <button 
             onClick={handleGoogle}
-            className="w-full bg-white border border-gray-200 text-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+            disabled={loading}
+            className="w-full bg-white border border-gray-200 text-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
+            <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4" />
             Continue with Google
           </button>
+
+          {/iPhone|iPad|iPod|Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent) && (
+            <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+              <p className="text-[10px] text-orange-800 font-medium text-center leading-relaxed">
+                iPhone/Safari users: If you experience login issues, please tap the "Share" icon and select <strong>"Open in Safari"</strong> or open this link in a new tab.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-100 text-center">
