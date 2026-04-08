@@ -105,7 +105,8 @@ service cloud.firestore {
                data.membership.keys().hasAll(['plan', 'status']) &&
                data.membership.plan in ['Free', 'Pro', 'Super Pro', 'Legend Pro'] &&
                data.membership.status in ['none', 'pending', 'approved'] &&
-               (!('badge' in data.membership) || data.membership.badge is string)
+               (!('badge' in data.membership) || data.membership.badge is string) &&
+               (!('expiresAt' in data.membership) || (data.membership.expiresAt is timestamp || data.membership.expiresAt == null))
              ));
     }
 
@@ -129,7 +130,7 @@ service cloud.firestore {
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
-             data.content is string && data.content.size() >= 10 &&
+             data.content is string && data.content.size() >= 4000 && // Approx 800 words
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() > 0 &&
              data.category is string && data.category.size() > 0 &&

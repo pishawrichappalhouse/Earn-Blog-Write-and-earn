@@ -17,7 +17,8 @@
           "properties": {
             "plan": { "type": "string", "enum": ["Free", "Pro", "Super Pro", "Legend Pro"] },
             "status": { "type": "string", "enum": ["none", "pending", "approved"] },
-            "badge": { "type": "string" }
+            "badge": { "type": "string" },
+            "expiresAt": { "type": "string", "format": "date-time" }
           }
         },
         "createdAt": { "type": "string", "format": "date-time" }

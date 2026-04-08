@@ -97,6 +97,7 @@ interface UserProfile {
     plan?: 'Pro' | 'Super Pro' | 'Legend Pro' | null;
     status: 'none' | 'pending' | 'approved';
     badge?: string;
+    expiresAt?: any;
   };
   createdAt: any;
 }
@@ -213,6 +214,29 @@ const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
+};
+
+const StickyAd = () => {
+  const [isVisible, setIsVisible] = useState(true);
+  const location = useLocation();
+  
+  if (!isVisible || location.pathname === '/admin') return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 pointer-events-none">
+      <div className="max-w-4xl mx-auto relative pointer-events-auto">
+        <button 
+          onClick={() => setIsVisible(false)}
+          className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-gray-100 rounded-full shadow-lg flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors z-10"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <div className="bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden p-2">
+          <AdBanner position="inline" />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- Components ---
@@ -442,14 +466,14 @@ const Membership = () => {
       name: 'Pro',
       price: 400,
       badge: 'Pro',
-      features: ['Unlock Blog Posting', 'Pro Badge', 'Standard Support'],
+      features: ['3 Months Validity', 'Unlock Blog Posting', 'Pro Badge', 'Standard Support'],
       color: 'blue'
     },
     {
       name: 'Super Pro',
       price: 800,
       badge: 'Super Pro',
-      features: ['Unlock Blog Posting', 'Super Pro Badge', 'Priority Support', 'Featured Posts'],
+      features: ['3 Months Validity', 'Unlock Blog Posting', 'Super Pro Badge', 'Priority Support', 'Featured Posts'],
       color: 'orange',
       recommended: true
     },
@@ -457,7 +481,7 @@ const Membership = () => {
       name: 'Legend Pro',
       price: 1500,
       badge: 'Legend Pro',
-      features: ['Unlock Blog Posting', 'Legend Pro Badge', '24/7 Support', 'Verified Status', 'Revenue Share'],
+      features: ['3 Months Validity', 'Unlock Blog Posting', 'Legend Pro Badge', '24/7 Support', 'Verified Status', 'Revenue Share'],
       color: 'purple'
     }
   ];
@@ -491,7 +515,7 @@ const Membership = () => {
               <h3 className="text-xl font-black text-gray-900 mb-2">{plan.name}</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-gray-900">Rs {plan.price}</span>
-                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">/ Lifetime</span>
+                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">/ 3 Months</span>
               </div>
             </div>
             <ul className="space-y-4 mb-10">
@@ -1392,6 +1416,8 @@ const Home = () => {
         </div>
       </section>
 
+      <AdBanner position="inline" />
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         {/* Latest Posts */}
         <div className="lg:col-span-8 space-y-12">
@@ -1401,56 +1427,58 @@ const Home = () => {
           </div>
 
           <div className="space-y-10">
-            {latestPosts.map((post) => (
-              <motion.article 
-                key={post.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 group"
-              >
-                <Link to={`/post/${post.id}`} className="md:w-72 aspect-[4/3] rounded-3xl overflow-hidden shadow-lg flex-shrink-0">
-                  <img 
-                    src={post.thumbnail || `https://picsum.photos/seed/${post.id}/600/400`} 
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                </Link>
-                <div className="flex-1 space-y-4 py-2">
-                  <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase tracking-widest rounded-full">{post.category}</span>
-                    <div className="w-1 h-1 bg-gray-300 rounded-full" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}
-                    </span>
-                  </div>
-                  <Link to={`/post/${post.id}`}>
-                    <h3 className="text-2xl font-black text-gray-900 group-hover:text-orange-600 transition-colors leading-tight">
-                      {post.title}
-                    </h3>
+            {latestPosts.map((post, index) => (
+              <React.Fragment key={post.id}>
+                <motion.article 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="flex flex-col md:flex-row gap-8 group"
+                >
+                  <Link to={`/post/${post.id}`} className="md:w-72 aspect-[4/3] rounded-3xl overflow-hidden shadow-lg flex-shrink-0">
+                    <img 
+                      src={post.thumbnail || `https://picsum.photos/seed/${post.id}/600/400`} 
+                      alt={post.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
                   </Link>
-                  <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">
-                    {post.content.replace(/<[^>]*>/g, '').substring(0, 180)}...
-                  </p>
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                  <div className="flex-1 space-y-4 py-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                        {post.authorName[0]}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{post.authorName}</span>
-                        <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
-                      </div>
+                      <span className="px-3 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase tracking-widest rounded-full">{post.category}</span>
+                      <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {post.createdAt?.toDate ? format(post.createdAt.toDate(), 'MMM d, yyyy') : 'Recently'}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-4 text-gray-400">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                        <Eye className="w-3.5 h-3.5" /> {post.views}
+                    <Link to={`/post/${post.id}`}>
+                      <h3 className="text-2xl font-black text-gray-900 group-hover:text-orange-600 transition-colors leading-tight">
+                        {post.title}
+                      </h3>
+                    </Link>
+                    <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed">
+                      {post.content.replace(/<[^>]*>/g, '').substring(0, 180)}...
+                    </p>
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                          {post.authorName[0]}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{post.authorName}</span>
+                          <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-gray-400">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                          <Eye className="w-3.5 h-3.5" /> {post.views}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.article>
+                </motion.article>
+                {(index + 1) % 3 === 0 && <AdBanner position="inline" />}
+              </React.Fragment>
             ))}
             {latestPosts.length === 0 && (
               <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
@@ -1891,12 +1919,21 @@ const PostView = () => {
 
             <div className="prose prose-orange prose-xl max-w-none">
               <div className="text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">
-                {post.content.split('\n\n').map((para, i) => (
-                  <React.Fragment key={i}>
-                    <p>{para}</p>
-                    {i === 1 && <AdBanner position="inline" />}
-                  </React.Fragment>
-                ))}
+                {(() => {
+                  const paragraphs = post.content.split('\n\n');
+                  return paragraphs.map((para, i) => (
+                    <React.Fragment key={i}>
+                      <p>{para}</p>
+                      {/* Ad after 2nd paragraph */}
+                      {i === 1 && <AdBanner position="inline" />}
+                      {/* Ad in the middle (after 5th paragraph) */}
+                      {i === 4 && <AdBanner position="inline" />}
+                      {/* Ad after every additional 4 paragraphs */}
+                      {i > 4 && (i - 4) % 4 === 0 && i !== paragraphs.length - 1 && <AdBanner position="inline" />}
+                    </React.Fragment>
+                  ));
+                })()}
+                <AdBanner position="inline" /> {/* End of article ad */}
               </div>
             </div>
             
@@ -2128,6 +2165,13 @@ const Dashboard = () => {
                     {user.membership?.status === 'approved' ? 'Active Membership' : 
                      user.membership?.status === 'pending' ? 'Verification Pending' : 'No Membership Found'}
                   </p>
+                  {user.membership?.status === 'approved' && user.membership.expiresAt && (
+                    <p className="text-[10px] text-gray-400 mt-2">
+                      Expires on: <span className="font-bold text-red-500">
+                        {user.membership.expiresAt.toDate ? format(user.membership.expiresAt.toDate(), 'MMM d, yyyy') : 'N/A'}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 {user.role === 'admin' ? (
                   <span className="bg-purple-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter badge-shine">
@@ -2363,6 +2407,14 @@ const Editor = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // Word count validation (800+ words)
+    const wordCount = form.content.trim().split(/\s+/).filter(word => word.length > 0).length;
+    if (wordCount < 800) {
+      toast.error(`Your story is too short (${wordCount} words). Please write at least 800 words for high-quality content.`);
+      return;
+    }
+
     setLoading(true);
     const isAdmin = user.role === 'admin';
     try {
@@ -2731,10 +2783,13 @@ const BPAPanel = () => {
 
       if (status === 'approved') {
         const userRef = doc(db, 'users', depositData.userId);
+        const expiresAt = Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+        
         await updateDoc(userRef, {
           'membership.status': 'approved',
           'membership.plan': depositData.planName,
-          'membership.badge': depositData.planName // e.g., "Pro", "Super Pro", "Legend Pro"
+          'membership.badge': depositData.planName,
+          'membership.expiresAt': expiresAt
         });
 
         // Add Notification
@@ -3893,7 +3948,34 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (firebaseUser) {
         const unsubUser = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
           if (docSnap.exists()) {
-            setUser(docSnap.data() as UserProfile);
+            const userData = docSnap.data() as UserProfile;
+            
+            // Check for membership expiration
+            if (userData.membership?.status === 'approved' && userData.membership.expiresAt) {
+              const now = Timestamp.now();
+              const expiresAt = userData.membership.expiresAt;
+              
+              if (now.toMillis() > expiresAt.toMillis()) {
+                // Membership expired
+                updateDoc(doc(db, 'users', firebaseUser.uid), {
+                  'membership.status': 'none',
+                  'membership.plan': null,
+                  'membership.expiresAt': null
+                }).catch(err => console.error('Failed to expire membership:', err));
+                
+                // Add Notification for expiration
+                addDoc(collection(db, 'notifications'), {
+                  userId: firebaseUser.uid,
+                  title: 'Membership Expired',
+                  message: 'Your 3-month membership has expired. Please reactivate to continue enjoying premium features.',
+                  type: 'post_rejected',
+                  read: false,
+                  createdAt: serverTimestamp()
+                }).catch(err => console.error('Failed to send expiration notification:', err));
+              }
+            }
+            
+            setUser(userData);
           }
           setLoading(false);
         });
@@ -3972,43 +4054,49 @@ const CategoryView = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {posts.map(post => (
-          <motion.div 
-            key={post.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500"
-          >
-            <Link to={`/post/${post.id}`} className="block">
-              <div className="aspect-[16/10] overflow-hidden relative">
-                <img 
-                  src={post.thumbnail || `https://picsum.photos/seed/${post.id}/800/500`} 
-                  alt={post.title} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm badge-shine">
-                    {post.category}
-                  </span>
-                </div>
-              </div>
-              <div className="p-8 space-y-4">
-                <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
-                  {post.title}
-                </h3>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{post.authorName}</span>
-                    <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
-                  </div>
-                  <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    <Eye className="w-3 h-3" /> {post.views}
+        {posts.map((post, index) => (
+          <React.Fragment key={post.id}>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 hover:shadow-2xl hover:shadow-orange-100 transition-all duration-500"
+            >
+              <Link to={`/post/${post.id}`} className="block">
+                <div className="aspect-[16/10] overflow-hidden relative">
+                  <img 
+                    src={post.thumbnail || `https://picsum.photos/seed/${post.id}/800/500`} 
+                    alt={post.title} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-[10px] font-bold uppercase tracking-widest rounded-full shadow-sm badge-shine">
+                      {post.category}
+                    </span>
                   </div>
                 </div>
+                <div className="p-8 space-y-4">
+                  <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-orange-600 transition-colors">
+                    {post.title}
+                  </h3>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{post.authorName}</span>
+                      <AuthorBadge badge={post.authorBadge} role={post.authorRole} className="mt-0.5" />
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                      <Eye className="w-3 h-3" /> {post.views}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+            {(index + 1) % 6 === 0 && (
+              <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                <AdBanner position="inline" />
               </div>
-            </Link>
-          </motion.div>
+            )}
+          </React.Fragment>
         ))}
       </div>
       {posts.length === 0 && (
@@ -4046,6 +4134,7 @@ export default function App() {
               <Route path="/terms" element={<PrivacyPolicy />} />
             </Routes>
           </main>
+          <StickyAd />
           <Footer />
         </div>
       </AuthProvider>
