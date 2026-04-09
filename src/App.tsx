@@ -216,11 +216,29 @@ const useAuth = () => {
   return context;
 };
 
+const isAdAllowed = (pathname: string) => {
+  const excludedPaths = [
+    '/login',
+    '/auth',
+    '/dashboard',
+    '/deposit',
+    '/membership',
+    '/contact',
+    '/about',
+    '/privacy',
+    '/terms',
+    '/admin',
+    '/create',
+    '/editor'
+  ];
+  return !excludedPaths.some(path => pathname.startsWith(path));
+};
+
 const StickyAd = () => {
   const [isVisible, setIsVisible] = useState(true);
   const location = useLocation();
   
-  if (!isVisible || location.pathname === '/admin') return null;
+  if (!isVisible || !isAdAllowed(location.pathname)) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 pointer-events-none">
@@ -1115,7 +1133,7 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
   const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
-    if (location.pathname === '/admin') return;
+    if (!isAdAllowed(location.pathname)) return;
     // In a SPA with React StrictMode, components mount twice in development.
     // This can cause multiple adsbygoogle.push() calls for the same slot,
     // leading to the "All 'ins' elements... already have ads in them" error.
@@ -1153,8 +1171,8 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
     return () => clearTimeout(timeoutId);
   }, [position, location.pathname]);
 
-  // Hide ads on Admin Panel
-  if (location.pathname === '/admin') return null;
+  // Hide ads on excluded pages
+  if (!isAdAllowed(location.pathname)) return null;
 
   const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
 
@@ -1307,7 +1325,6 @@ const Home = () => {
         </div>
       )}
       <MembershipNotice />
-      <AdBanner position="top" />
 
       {/* Hero Section */}
       <section className="py-16 text-center space-y-6">
@@ -1416,7 +1433,7 @@ const Home = () => {
         </div>
       </section>
 
-      <AdBanner position="inline" />
+      {posts.length > 0 && <AdBanner position="inline" />}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         {/* Latest Posts */}
@@ -1852,11 +1869,14 @@ const PostView = () => {
 
   if (!post) return null;
 
+  const wordCount = post.content.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const showAds = wordCount >= 800;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         <div className="lg:col-span-8">
-          <AdBanner position="top" />
+          {showAds && <AdBanner position="top" />}
           
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -1924,16 +1944,14 @@ const PostView = () => {
                   return paragraphs.map((para, i) => (
                     <React.Fragment key={i}>
                       <p>{para}</p>
-                      {/* Ad after 2nd paragraph */}
-                      {i === 1 && <AdBanner position="inline" />}
-                      {/* Ad in the middle (after 5th paragraph) */}
-                      {i === 4 && <AdBanner position="inline" />}
-                      {/* Ad after every additional 4 paragraphs */}
-                      {i > 4 && (i - 4) % 4 === 0 && i !== paragraphs.length - 1 && <AdBanner position="inline" />}
+                      {/* Ad after 2-3 paragraphs (using 2nd) */}
+                      {showAds && i === 1 && <AdBanner position="inline" />}
+                      {/* Ad in the middle */}
+                      {showAds && i === Math.floor(paragraphs.length / 2) && i > 1 && i < paragraphs.length - 1 && <AdBanner position="inline" />}
                     </React.Fragment>
                   ));
                 })()}
-                <AdBanner position="inline" /> {/* End of article ad */}
+                {showAds && <AdBanner position="inline" />} {/* End of article ad */}
               </div>
             </div>
             
@@ -4046,7 +4064,7 @@ const CategoryView = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <AdBanner position="top" />
+      {posts.length > 0 && <AdBanner position="top" />}
       <div className="flex items-center gap-4 mb-12">
         <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">{category} Stories</h1>
         <div className="h-[2px] bg-gray-100 flex-1" />
