@@ -46,7 +46,8 @@ import {
   Users,
   Edit2,
   Mail,
-  ChevronDown
+  ChevronDown,
+  Coins
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -94,12 +95,15 @@ interface UserProfile {
   totalEarned: number;
   role: 'user' | 'admin';
   membership?: {
-    plan?: 'Pro' | 'Super Pro' | 'Legend Pro' | null;
+    plan?: 'Pro' | 'Super Pro' | 'Legend Pro' | 'Free' | null;
     status: 'none' | 'pending' | 'approved';
     badge?: string;
     expiresAt?: any;
   };
   createdAt: any;
+  lastLoginAt?: any;
+  lastActiveAt?: any;
+  isOnline?: boolean;
 }
 
 interface BlogPost {
@@ -842,6 +846,16 @@ const Navbar = () => {
   }, [user]);
 
   const handleLogout = async () => {
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          isOnline: false,
+          lastActiveAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Failed to update logout presence:', err);
+      }
+    }
     await signOut(auth);
     navigate('/login');
   };
@@ -3597,10 +3611,12 @@ const BPAPanel = () => {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Badge</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Current Balance</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Total Earned</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Activity</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Joined</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Balance</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
@@ -3609,8 +3625,12 @@ const BPAPanel = () => {
                   <tr key={u.uid}>
                     <td className="px-8 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden relative">
                           {u.photoURL && <img src={u.photoURL} alt={u.displayName} />}
+                          <div className={cn(
+                            "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm",
+                            u.isOnline ? "bg-green-500" : "bg-gray-300"
+                          )} />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-gray-900">{u.displayName}</p>
@@ -3618,7 +3638,21 @@ const BPAPanel = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-4 capitalize text-sm">{u.role}</td>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          u.isOnline ? "bg-green-500 animate-pulse" : "bg-gray-300"
+                        )} />
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase tracking-wider",
+                          u.isOnline ? "text-green-600" : "text-gray-400"
+                        )}>
+                          {u.isOnline ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 capitalize text-sm font-medium">{u.role}</td>
                     <td className="px-8 py-4">
                       {editingUserBadge === u.uid ? (
                         <div className="flex flex-col gap-2">
@@ -3689,7 +3723,24 @@ const BPAPanel = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-8 py-4 text-sm font-bold">
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Login</p>
+                        <p className="text-xs font-medium text-gray-600">
+                          {u.lastLoginAt?.toDate ? format(u.lastLoginAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
+                        </p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Last Active</p>
+                        <p className="text-xs font-medium text-gray-600">
+                          {u.lastActiveAt?.toDate ? format(u.lastActiveAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <p className="text-xs font-medium text-gray-600">
+                        {u.createdAt?.toDate ? format(u.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
+                      </p>
+                    </td>
+                    <td className="px-8 py-4">
                       {editingUserCoins === u.uid ? (
                         <div className="flex items-center gap-2">
                           <input 
@@ -3716,21 +3767,24 @@ const BPAPanel = () => {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span>{u.coins.toFixed(0)}</span>
-                          <button 
-                            onClick={() => {
-                              setEditingUserCoins(u.uid);
-                              setCoinAdjustment('0');
-                            }}
-                            className="p-1 text-gray-400 hover:text-orange-600 transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1">
+                            <Coins className="w-3 h-3 text-orange-500" />
+                            <span className="text-sm font-bold text-gray-900">{u.coins.toLocaleString()}</span>
+                            <button 
+                              onClick={() => {
+                                setEditingUserCoins(u.uid);
+                                setCoinAdjustment(u.coins.toString());
+                              }}
+                              className="p-1 text-gray-400 hover:text-orange-600 transition-colors ml-1"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-gray-400 font-medium">Total: {u.totalEarned.toLocaleString()}</p>
                         </div>
                       )}
                     </td>
-                    <td className="px-8 py-4 text-sm font-bold text-green-600">{u.totalEarned.toFixed(0)}</td>
                     <td className="px-8 py-4 text-right">
                       <button 
                         onClick={() => {
@@ -3808,7 +3862,10 @@ const Auth = () => {
             plan: 'Free',
             status: 'none'
           },
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          isOnline: true
         });
       } else {
         const { user } = await signInWithEmailAndPassword(auth, email, password);
@@ -3830,10 +3887,19 @@ const Auth = () => {
               plan: 'Free',
               status: 'none'
             },
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            lastLoginAt: serverTimestamp(),
+            lastActiveAt: serverTimestamp(),
+            isOnline: true
           });
-        } else if (email === 'pishawrichappalhouse@gmail.com') {
-          await updateDoc(userRef, { role: 'admin' });
+        } else {
+          const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+          await updateDoc(userRef, { 
+            role: isAdmin ? 'admin' : userSnap.data().role,
+            lastLoginAt: serverTimestamp(),
+            lastActiveAt: serverTimestamp(),
+            isOnline: true
+          });
         }
       }
 
@@ -3893,10 +3959,18 @@ const Auth = () => {
             plan: 'Free',
             status: 'none'
           },
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          isOnline: true
         });
-      } else if (isAdmin) {
-        await updateDoc(docRef, { role: 'admin' });
+      } else {
+        await updateDoc(docRef, { 
+          role: isAdmin ? 'admin' : docSnap.data().role,
+          lastLoginAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          isOnline: true
+        });
       }
       
       // Check membership status
@@ -4084,6 +4158,46 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       unsubSettings();
     };
   }, []);
+
+  // Activity & Presence Tracking
+  useEffect(() => {
+    if (!user) return;
+
+    const updatePresence = async (isOnline: boolean) => {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          isOnline,
+          lastActiveAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Failed to update presence:', err);
+      }
+    };
+
+    // Initial online status
+    updatePresence(true);
+
+    // Heartbeat every 2 minutes
+    const heartbeat = setInterval(() => updatePresence(true), 2 * 60 * 1000);
+
+    // Handle tab close/visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        updatePresence(false);
+      } else {
+        updatePresence(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // We don't set offline here because it might be a simple re-render
+    };
+  }, [user?.uid]);
 
   return (
     <AuthContext.Provider value={{ user, loading, settings }}>

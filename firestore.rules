@@ -90,7 +90,7 @@ service cloud.firestore {
 
     function isValidUser(data) {
       let requiredFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role', 'createdAt'];
-      let optionalFields = ['photoURL', 'membership'];
+      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.uid is string && data.uid.size() > 0 &&
@@ -100,6 +100,9 @@ service cloud.firestore {
              data.totalEarned is number && data.totalEarned >= 0 &&
              data.role in ['user', 'admin'] &&
              (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('lastLoginAt' in data) || (data.lastLoginAt is timestamp || data.lastLoginAt == request.time)) &&
+             (!('lastActiveAt' in data) || (data.lastActiveAt is timestamp || data.lastActiveAt == request.time)) &&
+             (!('isOnline' in data) || data.isOnline is bool) &&
              (!('membership' in data) || (
                data.membership is map &&
                data.membership.keys().hasAll(['plan', 'status']) &&
@@ -189,7 +192,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership']) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline']) &&
          isValidUser(request.resource.data) &&
          // Prevent self-approval of membership
          (
