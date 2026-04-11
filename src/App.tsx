@@ -871,7 +871,6 @@ const Navbar = () => {
                 <div className="absolute top-full left-0 mt-2 w-48 bg-[#1E293B] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all duration-200 py-2">
                   <Link to="/category/Technology" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Technology</Link>
                   <Link to="/category/Earning" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Earning</Link>
-                  <Link to="/category/Education" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Education</Link>
                   <Link to="/category/Lifestyle" className="block px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors">Lifestyle</Link>
                 </div>
               </div>
@@ -1217,7 +1216,7 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
 // --- Pages ---
 
 const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
-  const categories = ['Technology', 'Earning', 'Education', 'Lifestyle'];
+  const categories = ['Technology', 'Earning', 'Lifestyle'];
   
   return (
     <aside className="space-y-12">
@@ -1315,7 +1314,7 @@ const Home = () => {
   const featuredPosts = posts.slice(0, 3);
   const latestPosts = posts.slice(3);
   const popularPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
-  const categories = ['Technology', 'Earning', 'Education', 'Lifestyle'];
+  const categories = ['Technology', 'Earning', 'Lifestyle'];
 
   if (loading) {
     return (
