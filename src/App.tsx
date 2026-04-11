@@ -3805,16 +3805,35 @@ const Auth = () => {
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
           membership: {
-            plan: null,
+            plan: 'Free',
             status: 'none'
           },
           createdAt: serverTimestamp()
         });
       } else {
         const { user } = await signInWithEmailAndPassword(auth, email, password);
-        // Ensure admin role is synced if it's the admin email
-        if (email === 'pishawrichappalhouse@gmail.com') {
-          await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
+        
+        // Check if user document exists, if not create it (handles half-failed signups)
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+          await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: name || user.email?.split('@')[0] || 'User',
+            coins: 0,
+            totalEarned: 0,
+            role: isAdmin ? 'admin' : 'user',
+            membership: {
+              plan: 'Free',
+              status: 'none'
+            },
+            createdAt: serverTimestamp()
+          });
+        } else if (email === 'pishawrichappalhouse@gmail.com') {
+          await updateDoc(userRef, { role: 'admin' });
         }
       }
 
@@ -3822,7 +3841,7 @@ const Auth = () => {
       const userSnap = await getDoc(userRef);
       const userData = userSnap.data() as UserProfile;
       
-      if (userData.role === 'admin' || userData.membership?.status === 'approved') {
+      if (userData && (userData.role === 'admin' || userData.membership?.status === 'approved')) {
         navigate('/dashboard');
       } else {
         navigate('/membership');
@@ -3871,7 +3890,7 @@ const Auth = () => {
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
           membership: {
-            plan: null, // Default to null
+            plan: 'Free',
             status: 'none'
           },
           createdAt: serverTimestamp()

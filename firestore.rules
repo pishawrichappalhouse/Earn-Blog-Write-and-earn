@@ -103,17 +103,18 @@ service cloud.firestore {
              (!('membership' in data) || (
                data.membership is map &&
                data.membership.keys().hasAll(['plan', 'status']) &&
-               data.membership.plan in ['Free', 'Pro', 'Super Pro', 'Legend Pro'] &&
+               (data.membership.plan in ['Free', 'Pro', 'Super Pro', 'Legend Pro'] || data.membership.plan == null) &&
                data.membership.status in ['none', 'pending', 'approved'] &&
-               (!('badge' in data.membership) || data.membership.badge is string) &&
+               (!('badge' in data.membership) || (data.membership.badge is string || data.membership.badge == null)) &&
                (!('expiresAt' in data.membership) || (data.membership.expiresAt is timestamp || data.membership.expiresAt == null))
              ));
     }
 
     function isValidDeposit(data) {
-      let requiredFields = ['id', 'userId', 'userName', 'planName', 'amount', 'trxId', 'screenshotUrl', 'status', 'createdAt'];
+      let requiredFields = ['userId', 'userName', 'planName', 'amount', 'trxId', 'screenshotUrl', 'status', 'createdAt'];
+      let optionalFields = ['id'];
       return data.keys().hasAll(requiredFields) &&
-             data.id is string &&
+             data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.userId == request.auth.uid &&
              data.userName is string &&
              data.planName in ['Pro', 'Super Pro', 'Legend Pro'] &&
@@ -130,7 +131,7 @@ service cloud.firestore {
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
-             data.content is string && data.content.size() >= 4000 && // Approx 800 words
+             data.content is string && data.content.size() >= 2000 && // Approx 400 words (safer minimum)
              data.authorId is string && data.authorId == request.auth.uid &&
              data.authorName is string && data.authorName.size() > 0 &&
              data.category is string && data.category.size() > 0 &&
