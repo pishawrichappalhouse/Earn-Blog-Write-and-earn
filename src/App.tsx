@@ -204,6 +204,29 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Context ---
 
+const AdEligibilityContext = createContext<{
+  isEligible: boolean;
+  setIsEligible: (eligible: boolean) => void;
+}>({ isEligible: true, setIsEligible: () => {} });
+
+const useAdEligibility = () => useContext(AdEligibilityContext);
+
+const AdEligibilityProvider = ({ children }: { children: React.ReactNode }) => {
+  const [isEligible, setIsEligible] = useState(true);
+  const location = useLocation();
+
+  // Reset eligibility on route change
+  useEffect(() => {
+    setIsEligible(true);
+  }, [location.pathname]);
+
+  return (
+    <AdEligibilityContext.Provider value={{ isEligible, setIsEligible }}>
+      {children}
+    </AdEligibilityContext.Provider>
+  );
+};
+
 const AuthContext = createContext<{
   user: UserProfile | null;
   loading: boolean;
@@ -217,28 +240,20 @@ const useAuth = () => {
 };
 
 const isAdAllowed = (pathname: string) => {
-  const excludedPaths = [
-    '/login',
-    '/auth',
-    '/dashboard',
-    '/deposit',
-    '/membership',
-    '/contact',
-    '/about',
-    '/privacy',
-    '/terms',
-    '/admin',
-    '/create',
-    '/editor'
-  ];
-  return !excludedPaths.some(path => pathname.startsWith(path));
+  // Strictly allow ads only on Home and Blog Post pages
+  const isHome = pathname === '/';
+  const isPost = pathname.startsWith('/post/');
+  const isCategory = pathname.startsWith('/category/');
+  
+  return isHome || isPost || isCategory;
 };
 
 const StickyAd = () => {
   const [isVisible, setIsVisible] = useState(true);
   const location = useLocation();
+  const { isEligible } = useAdEligibility();
   
-  if (!isVisible || !isAdAllowed(location.pathname)) return null;
+  if (!isVisible || !isAdAllowed(location.pathname) || !isEligible) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 pointer-events-none">
@@ -1128,12 +1143,13 @@ const pushedElements = new WeakSet<HTMLElement>();
 
 const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inline' }) => {
   const location = useLocation();
+  const { isEligible } = useAdEligibility();
   const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID || 'ca-pub-7554219557678246';
   const slotId = import.meta.env.VITE_ADSENSE_SLOT_ID || '3774238446';
   const adRef = React.useRef<HTMLModElement>(null);
   
   useEffect(() => {
-    if (!isAdAllowed(location.pathname)) return;
+    if (!isAdAllowed(location.pathname) || !isEligible) return;
     // In a SPA with React StrictMode, components mount twice in development.
     // This can cause multiple adsbygoogle.push() calls for the same slot,
     // leading to the "All 'ins' elements... already have ads in them" error.
@@ -1171,8 +1187,8 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
     return () => clearTimeout(timeoutId);
   }, [position, location.pathname]);
 
-  // Hide ads on excluded pages
-  if (!isAdAllowed(location.pathname)) return null;
+  // Hide ads on excluded pages or if not eligible
+  if (!isAdAllowed(location.pathname) || !isEligible) return null;
 
   const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('run.app');
 
@@ -1276,6 +1292,7 @@ const Sidebar = ({ popularPosts }: { popularPosts: BlogPost[] }) => {
 const Home = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const { setIsEligible } = useAdEligibility();
 
   useEffect(() => {
     const q = query(
@@ -1285,12 +1302,14 @@ const Home = () => {
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+      const fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost));
+      setPosts(fetchedPosts);
+      setIsEligible(fetchedPosts.length > 0);
       setLoading(false);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
 
     return () => unsubscribe();
-  }, []);
+  }, [setIsEligible]);
 
   const { user } = useAuth();
   const featuredPosts = posts.slice(0, 3);
@@ -1760,6 +1779,7 @@ const PostView = () => {
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const { user, settings } = useAuth();
+  const { setIsEligible } = useAdEligibility();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1814,9 +1834,15 @@ const PostView = () => {
       const unsubRelated = onSnapshot(relatedQ, (snap) => {
         setRelatedPosts(snap.docs.filter(d => d.id !== post.id).map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)).slice(0, 3));
       });
+
+      const wordCount = post.content.trim().split(/\s+/).filter(word => word.length > 0).length;
+      setIsEligible(wordCount >= 800);
+
       return () => unsubRelated();
+    } else {
+      setIsEligible(false);
     }
-  }, [post]);
+  }, [post, setIsEligible]);
 
   // Separate effect for incrementing views to avoid infinite loops
   useEffect(() => {
@@ -1876,8 +1902,6 @@ const PostView = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         <div className="lg:col-span-8">
-          {showAds && <AdBanner position="top" />}
-          
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1896,6 +1920,7 @@ const PostView = () => {
               <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">
                 {post.title}
               </h1>
+              {showAds && <AdBanner position="inline" />}
               <div className="flex items-center gap-6 py-6 border-y border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-500">
@@ -4035,6 +4060,7 @@ const CategoryView = () => {
   const { category } = useParams();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const { setIsEligible } = useAdEligibility();
 
   useEffect(() => {
     if (!category) return;
@@ -4049,12 +4075,14 @@ const CategoryView = () => {
       orderBy('createdAt', 'desc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+      const fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost));
+      setPosts(fetchedPosts);
+      setIsEligible(fetchedPosts.length > 0);
       setLoading(false);
     }, (error) => handleFirestoreError(error, OperationType.LIST, `posts/${category}`));
 
     return () => unsubscribe();
-  }, [category]);
+  }, [category, setIsEligible]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -4130,31 +4158,33 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <NotificationListener />
-        <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
-          <Toaster position="top-center" richColors />
-          <Navbar />
-          <MembershipNotice />
-          <main>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/membership" element={<Membership />} />
-              <Route path="/deposit" element={<Deposit />} />
-              <Route path="/category/:category" element={<CategoryView />} />
-              <Route path="/post/:id" element={<PostView />} />
-              <Route path="/dashboard" element={<PlanGuard><Dashboard /></PlanGuard>} />
-              <Route path="/create" element={<PlanGuard><Editor /></PlanGuard>} />
-              <Route path="/admin" element={<BPAPanel />} />
-              <Route path="/login" element={<Auth />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<PrivacyPolicy />} />
-            </Routes>
-          </main>
-          <StickyAd />
-          <Footer />
-        </div>
+        <AdEligibilityProvider>
+          <NotificationListener />
+          <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
+            <Toaster position="top-center" richColors />
+            <Navbar />
+            <MembershipNotice />
+            <main>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/membership" element={<Membership />} />
+                <Route path="/deposit" element={<Deposit />} />
+                <Route path="/category/:category" element={<CategoryView />} />
+                <Route path="/post/:id" element={<PostView />} />
+                <Route path="/dashboard" element={<PlanGuard><Dashboard /></PlanGuard>} />
+                <Route path="/create" element={<PlanGuard><Editor /></PlanGuard>} />
+                <Route path="/admin" element={<BPAPanel />} />
+                <Route path="/login" element={<Auth />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<PrivacyPolicy />} />
+              </Routes>
+            </main>
+            <StickyAd />
+            <Footer />
+          </div>
+        </AdEligibilityProvider>
       </AuthProvider>
     </Router>
   );
