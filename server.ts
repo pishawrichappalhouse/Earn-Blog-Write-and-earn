@@ -19,9 +19,24 @@ async function startServer() {
     // Development mode: Use Vite's connect instance as middleware
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: "custom", // Use custom to handle fallback manually if needed
     });
     app.use(vite.middlewares);
+
+    // SPA fallback for development
+    app.get('*', async (req, res, next) => {
+      if (req.originalUrl.startsWith('/api')) {
+        return next();
+      }
+      try {
+        const url = req.originalUrl;
+        const template = await vite.transformIndexHtml(url, await (await import('fs/promises')).readFile(path.resolve(__dirname, 'index.html'), 'utf-8'));
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
   } else {
     // Production mode: Serve static files from dist
     const distPath = path.join(process.cwd(), 'dist');
