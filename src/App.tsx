@@ -2601,6 +2601,7 @@ const BPAPanel = () => {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [allWithdrawals, setAllWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [allDeposits, setAllDeposits] = useState<Deposit[]>([]);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0 });
   const navigate = useNavigate();
 
@@ -3500,7 +3501,8 @@ const BPAPanel = () => {
                       src={deposit.screenshotUrl} 
                       alt="Screenshot" 
                       className="w-full h-full object-contain cursor-pointer hover:scale-105 transition-transform"
-                      onClick={() => window.open(deposit.screenshotUrl, '_blank')}
+                      onClick={() => setSelectedScreenshot(deposit.screenshotUrl)}
+                      referrerPolicy="no-referrer"
                     />
                   </div>
                   <div className="flex-1 space-y-6">
@@ -3571,7 +3573,7 @@ const BPAPanel = () => {
                         <td className="px-8 py-4">
                           {deposit.screenshotUrl ? (
                             <button 
-                              onClick={() => window.open(deposit.screenshotUrl, '_blank')}
+                              onClick={() => setSelectedScreenshot(deposit.screenshotUrl)}
                               className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline"
                             >
                               View
@@ -3831,6 +3833,44 @@ const BPAPanel = () => {
             </form>
           </div>
         )}
+
+        {/* Screenshot Viewer Modal */}
+        <AnimatePresence>
+          {selectedScreenshot && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+              onClick={() => setSelectedScreenshot(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative max-w-5xl w-full max-h-[90vh] bg-white rounded-[40px] overflow-hidden shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="absolute top-6 right-6 z-10">
+                  <button 
+                    onClick={() => setSelectedScreenshot(null)}
+                    className="p-3 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-all"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="w-full h-full overflow-auto p-8 flex items-center justify-center bg-gray-100">
+                  <img 
+                    src={selectedScreenshot} 
+                    alt="Payment Proof" 
+                    className="max-w-full h-auto rounded-2xl shadow-lg"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
