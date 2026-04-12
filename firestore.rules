@@ -188,6 +188,7 @@ service cloud.firestore {
     // Rules for User Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
+      allow delete: if isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
                     (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && (request.auth.token.email == "pishawrichappalhouse@gmail.com" || request.auth.token.email == "aiwithqammar@gmail.com")));
       allow update: if isAuthenticated() && (

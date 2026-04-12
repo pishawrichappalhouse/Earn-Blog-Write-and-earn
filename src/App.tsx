@@ -2752,6 +2752,7 @@ const BPAPanel = () => {
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [postToReject, setPostToReject] = useState<string | null>(null);
   const [withdrawalToReject, setWithdrawalToReject] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('Minimum withdrawal criteria not met');
   const [postRejectionReason, setPostRejectionReason] = useState('Content does not meet our guidelines');
 
@@ -2946,6 +2947,17 @@ const BPAPanel = () => {
       }
     } catch (error) {
       toast.error('Failed to update user balance');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+      toast.success('User deleted successfully');
+      setUserToDelete(null);
+    } catch (error) {
+      toast.error('Failed to delete user');
       console.error(error);
     }
   };
@@ -3788,15 +3800,26 @@ const BPAPanel = () => {
                       )}
                     </td>
                     <td className="px-8 py-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setEditingUserCoins(u.uid);
-                          setCoinAdjustment(u.coins.toString());
-                        }}
-                        className="text-xs font-bold text-orange-600 hover:text-orange-700"
-                      >
-                        Edit Balance
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => {
+                            setEditingUserCoins(u.uid);
+                            setCoinAdjustment(u.coins.toString());
+                          }}
+                          className="text-xs font-bold text-orange-600 hover:text-orange-700"
+                        >
+                          Edit Balance
+                        </button>
+                        {u.role !== 'admin' && (
+                          <button 
+                            onClick={() => setUserToDelete(u.uid)}
+                            className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -3833,6 +3856,47 @@ const BPAPanel = () => {
             </form>
           </div>
         )}
+
+        {/* User Deletion Confirmation Modal */}
+        <AnimatePresence>
+          {userToDelete && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl"
+              >
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Trash2 className="w-10 h-10 text-red-500" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 text-center mb-4 tracking-tight">Delete User?</h3>
+                <p className="text-gray-500 text-center mb-8 font-medium leading-relaxed">
+                  Are you sure you want to delete this user? This action cannot be undone and all user data will be removed from the database.
+                </p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setUserToDelete(null)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteUser(userToDelete)}
+                    className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-100"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Screenshot Viewer Modal */}
         <AnimatePresence>
