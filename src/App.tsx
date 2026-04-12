@@ -510,7 +510,7 @@ const Membership = () => {
       name: 'Super Pro',
       price: 800,
       badge: 'Super Pro',
-      features: ['3 Months Validity', 'Unlock Blog Posting', 'Super Pro Badge', 'Priority Support', 'Featured Posts'],
+      features: ['5 Months Validity', 'Unlock Blog Posting', 'Super Pro Badge', 'Priority Support', 'Featured Posts'],
       color: 'orange',
       recommended: true
     },
@@ -518,7 +518,7 @@ const Membership = () => {
       name: 'Legend Pro',
       price: 1500,
       badge: 'Legend Pro',
-      features: ['3 Months Validity', 'Unlock Blog Posting', 'Legend Pro Badge', '24/7 Support', 'Verified Status', 'Revenue Share'],
+      features: ['9 Months Validity', 'Unlock Blog Posting', 'Legend Pro Badge', '24/7 Support', 'Verified Status', 'Revenue Share'],
       color: 'purple'
     }
   ];
@@ -2330,7 +2330,14 @@ const Dashboard = () => {
             <h3 className="text-xl font-bold text-gray-900 mb-4">Request Withdrawal</h3>
             <div className="mb-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
               <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-1">Support Contact</p>
-              <p className="text-sm font-bold text-gray-900">WhatsApp: +923121130219</p>
+              <a 
+                href="https://wa.me/923117504081" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-sm font-bold text-gray-900 hover:text-orange-600 transition-colors block"
+              >
+                WhatsApp: +923117504081
+              </a>
             </div>
             <form onSubmit={handleWithdraw} className="space-y-4">
               <div>
