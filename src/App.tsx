@@ -3890,7 +3890,7 @@ const Auth = () => {
     try {
       if (isSignUp) {
         const { user } = await createUserWithEmailAndPassword(auth, email, password);
-        const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+        const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email: user.email,
@@ -3915,7 +3915,7 @@ const Auth = () => {
         const userSnap = await getDoc(userRef);
         
         if (!userSnap.exists()) {
-          const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+          const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
           await setDoc(userRef, {
             uid: user.uid,
             email: user.email,
@@ -3933,7 +3933,7 @@ const Auth = () => {
             isOnline: true
           });
         } else {
-          const isAdmin = email === 'pishawrichappalhouse@gmail.com';
+          const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
           await updateDoc(userRef, { 
             role: isAdmin ? 'admin' : userSnap.data().role,
             lastLoginAt: serverTimestamp(),
@@ -3983,7 +3983,7 @@ const Auth = () => {
     try {
       setLoading(true);
       const { user } = await signInWithPopup(auth, googleProvider);
-      const isAdmin = user.email === 'pishawrichappalhouse@gmail.com';
+      const isAdmin = user.email === 'pishawrichappalhouse@gmail.com' || user.email === 'aiwithqammar@gmail.com';
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
