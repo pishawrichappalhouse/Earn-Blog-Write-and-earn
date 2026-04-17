@@ -504,7 +504,8 @@ const Membership = () => {
       price: 400,
       badge: 'Pro',
       features: ['3 Months Validity', 'Unlock Blog Posting', 'Pro Badge', 'Standard Support'],
-      color: 'blue'
+      color: 'blue',
+      validity: '3 Months'
     },
     {
       name: 'Super Pro',
@@ -512,14 +513,16 @@ const Membership = () => {
       badge: 'Super Pro',
       features: ['5 Months Validity', 'Unlock Blog Posting', 'Super Pro Badge', 'Priority Support', 'Featured Posts'],
       color: 'orange',
-      recommended: true
+      recommended: true,
+      validity: '5 Months'
     },
     {
       name: 'Legend Pro',
       price: 1500,
       badge: 'Legend Pro',
       features: ['9 Months Validity', 'Unlock Blog Posting', 'Legend Pro Badge', '24/7 Support', 'Verified Status', 'Revenue Share'],
-      color: 'purple'
+      color: 'purple',
+      validity: '9 Months'
     }
   ];
 
@@ -552,7 +555,7 @@ const Membership = () => {
               <h3 className="text-xl font-black text-gray-900 mb-2">{plan.name}</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-gray-900">Rs {plan.price}</span>
-                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">/ 3 Months</span>
+                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">/ {plan.validity}</span>
               </div>
             </div>
             <ul className="space-y-4 mb-10">
@@ -2848,7 +2851,13 @@ const BPAPanel = () => {
 
       if (status === 'approved') {
         const userRef = doc(db, 'users', depositData.userId);
-        const expiresAt = Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+        
+        // Calculate expiration based on plan: 3 months (90 days), 5 months (150 days), 9 months (270 days)
+        let validityDays = 90;
+        if (depositData.planName === 'Super Pro') validityDays = 150;
+        else if (depositData.planName === 'Legend Pro') validityDays = 270;
+        
+        const expiresAt = Timestamp.fromMillis(Date.now() + validityDays * 24 * 60 * 60 * 1000);
         
         await updateDoc(userRef, {
           'membership.status': 'approved',
@@ -4233,7 +4242,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 addDoc(collection(db, 'notifications'), {
                   userId: firebaseUser.uid,
                   title: 'Membership Expired',
-                  message: 'Your 3-month membership has expired. Please reactivate to continue enjoying premium features.',
+                  message: 'Your membership has expired. Please reactivate to continue enjoying premium features.',
                   type: 'post_rejected',
                   read: false,
                   createdAt: serverTimestamp()
