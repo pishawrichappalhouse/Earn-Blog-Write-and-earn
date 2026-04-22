@@ -47,7 +47,12 @@ import {
   Edit2,
   Mail,
   ChevronDown,
-  Coins
+  Coins,
+  Copy,
+  Check as CheckIcon,
+  MessageCircle,
+  Facebook,
+  Twitter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -58,7 +63,8 @@ import {
   signOut, 
   User as FirebaseUser,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { 
   doc, 
@@ -104,6 +110,9 @@ interface UserProfile {
   lastLoginAt?: any;
   lastActiveAt?: any;
   isOnline?: boolean;
+  referredBy?: string;
+  referralCount?: number;
+  referralEarnings?: number;
 }
 
 interface BlogPost {
@@ -154,6 +163,7 @@ interface Deposit {
 interface PlatformSettings {
   coinValuePerView: number;
   minWithdrawal: number;
+  referralBonus: number;
 }
 
 interface Comment {
@@ -212,6 +222,136 @@ const AdEligibilityContext = createContext<{
   isEligible: boolean;
   setIsEligible: (eligible: boolean) => void;
 }>({ isEligible: true, setIsEligible: () => {} });
+
+const SharePost = ({ title, id }: { title: string, id: string }) => {
+  const shareUrl = `${window.location.origin}/post/${id}`;
+  const shareText = `Check out this amazing story on BloggerPro: ${title}`;
+
+  const handleShare = (platform: 'whatsapp' | 'facebook' | 'twitter') => {
+    let url = '';
+    switch (platform) {
+      case 'whatsapp':
+        url = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`;
+        break;
+      case 'facebook':
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+        break;
+      case 'twitter':
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+        break;
+    }
+    window.open(url, '_blank');
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl);
+    toast.success('Link copied to clipboard!');
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-4">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest w-full mb-1">Share post via:</p>
+      <button 
+        onClick={() => handleShare('whatsapp')}
+        className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors flex items-center gap-2 text-xs font-bold"
+      >
+        <MessageCircle className="w-4 h-4" /> WhatsApp
+      </button>
+      <button 
+        onClick={() => handleShare('facebook')}
+        className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-2 text-xs font-bold"
+      >
+        <Facebook className="w-4 h-4" /> Facebook
+      </button>
+      <button 
+        onClick={() => handleShare('twitter')}
+        className="p-2.5 bg-sky-50 text-sky-600 rounded-xl hover:bg-sky-100 transition-colors flex items-center gap-2 text-xs font-bold"
+      >
+        <Twitter className="w-4 h-4" /> Twitter
+      </button>
+      <button 
+        onClick={copyToClipboard}
+        className="p-2.5 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs font-bold"
+      >
+        <Copy className="w-4 h-4" /> Copy Link
+      </button>
+    </div>
+  );
+};
+
+const ReferralSection = () => {
+  const { user, settings } = useAuth();
+  const [copied, setCopied] = useState(false);
+  
+  if (!user) return null;
+
+  const referralUrl = `${window.location.origin}/login?ref=${user.uid}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(referralUrl);
+    setCopied(true);
+    toast.success('Referral link copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareToWhatsApp = () => {
+    const text = `Join BloggerPro and start earning coins by sharing your knowledge! Use my referral link: ${referralUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[40px] p-8 text-white relative overflow-hidden shadow-xl shadow-orange-200">
+      <div className="relative z-10">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-xl font-black tracking-tight">Refer & Earn</h3>
+            <p className="text-orange-100 text-xs font-medium">Invite friends and get {settings.referralBonus || 100} Coins!</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
+            <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Total Referrals</p>
+            <p className="text-2xl font-black leading-none">{user.referralCount || 0}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
+            <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Referral Earnings</p>
+            <p className="text-2xl font-black leading-none">{user.referralEarnings || 0}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest">Your Referral Link</p>
+          <div className="flex gap-2">
+            <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 text-xs font-medium border border-white/20 truncate">
+              {referralUrl}
+            </div>
+            <button 
+              onClick={copyLink}
+              className="px-4 bg-white text-orange-600 rounded-2xl font-bold hover:bg-orange-50 transition-all flex items-center gap-2 text-xs"
+            >
+              {copied ? <CheckIcon className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <button 
+            onClick={shareToWhatsApp}
+            className="w-full py-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+            <MessageCircle className="w-5 h-5" /> Share on WhatsApp
+          </button>
+        </div>
+      </div>
+      
+      {/* Decorative circles */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-black/10 rounded-full blur-3xl" />
+    </div>
+  );
+};
 
 const useAdEligibility = () => useContext(AdEligibilityContext);
 
@@ -1936,6 +2076,9 @@ const PostView = () => {
               <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">
                 {post.title}
               </h1>
+              
+              <SharePost title={post.title} id={post.id} />
+
               {showAds && <AdBanner position="inline" />}
               <div className="flex items-center gap-6 py-6 border-y border-gray-100">
                 <div className="flex items-center gap-3">
@@ -2262,6 +2405,8 @@ const Dashboard = () => {
         </div>
 
         <div className="lg:col-span-8 space-y-8">
+          <ReferralSection />
+          
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-gray-900">My Stories</h2>
             <div className="space-y-4">
@@ -2282,7 +2427,35 @@ const Dashboard = () => {
                       )}>{post.status}</span>
                     </div>
                   </div>
-                  <Link to={`/post/${post.id}`} className="p-2 hover:bg-gray-50 rounded-full"><ChevronRight className="w-5 h-5 text-gray-400" /></Link>
+                  <div className="flex items-center gap-2">
+                    {post.status === 'approved' && (
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => {
+                            const url = `https://wa.me/?text=${encodeURIComponent('Check out my story on BloggerPro: ' + window.location.origin + '/post/' + post.id)}`;
+                            window.open(url, '_blank');
+                          }}
+                          className="p-2 hover:bg-green-50 text-green-600 rounded-full transition-all"
+                          title="Share on WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(window.location.origin + '/post/' + post.id);
+                            toast.success('Link copied!');
+                          }}
+                          className="p-2 hover:bg-gray-50 text-gray-400 rounded-full transition-all"
+                          title="Copy Link"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    <Link to={`/post/${post.id}`} className="p-2 hover:bg-gray-50 rounded-full">
+                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                    </Link>
+                  </div>
                 </div>
               ))}
               {userPosts.length === 0 && <p className="text-gray-400 text-center py-8">No stories yet.</p>}
@@ -2866,6 +3039,34 @@ const BPAPanel = () => {
           'membership.expiresAt': expiresAt
         });
 
+        // Award Referral Bonus
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData.referredBy) {
+            const referrerRef = doc(db, 'users', userData.referredBy);
+            const referrerSnap = await getDoc(referrerRef);
+            if (referrerSnap.exists()) {
+              await updateDoc(referrerRef, {
+                coins: increment(settings.referralBonus || 100),
+                totalEarned: increment(settings.referralBonus || 100),
+                referralCount: increment(1),
+                referralEarnings: increment(settings.referralBonus || 100)
+              });
+              
+              // Notify Referrer
+              await addDoc(collection(db, 'notifications'), {
+                userId: userData.referredBy,
+                title: 'Referral Bonus!',
+                message: `You earned ${settings.referralBonus || 100} coins because ${userData.displayName} activated a membership.`,
+                type: 'post_approved',
+                read: false,
+                createdAt: serverTimestamp()
+              });
+            }
+          }
+        }
+
         // Add Notification
         await addDoc(collection(db, 'notifications'), {
           userId: depositData.userId,
@@ -2983,8 +3184,9 @@ const BPAPanel = () => {
     const formData = new FormData(e.currentTarget);
     const coinValuePerView = Number(formData.get('coinValuePerView'));
     const minWithdrawal = Number(formData.get('minWithdrawal'));
+    const referralBonus = Number(formData.get('referralBonus'));
     
-    await setDoc(doc(db, 'settings', 'global'), { coinValuePerView, minWithdrawal });
+    await setDoc(doc(db, 'settings', 'global'), { coinValuePerView, minWithdrawal, referralBonus });
     toast.success('Settings updated!');
   };
 
@@ -3868,6 +4070,16 @@ const BPAPanel = () => {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Referral Bonus (Coins)</label>
+                <input 
+                  type="number" 
+                  name="referralBonus"
+                  defaultValue={settings.referralBonus}
+                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
+                  required
+                />
+              </div>
               <button type="submit" className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg">Save Settings</button>
             </form>
           </div>
@@ -3961,23 +4173,51 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error('Please enter your email address first.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+      toast.success('Password reset link sent to your email!');
+    } catch (error: any) {
+      console.error('Reset Error:', error);
+      toast.error(error.message || 'Failed to send reset link.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     try {
+      const referredBy = localStorage.getItem('referredBy');
       if (isSignUp) {
-        const { user } = await createUserWithEmailAndPassword(auth, email, password);
-        const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
+        const { user } = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           email: user.email,
-          displayName: name,
+          displayName: name.trim(),
           coins: 0,
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
+          referredBy: referredBy || null,
+          referralCount: 0,
+          referralEarnings: 0,
           membership: {
             plan: 'Free',
             status: 'none'
@@ -3987,19 +4227,20 @@ const Auth = () => {
           lastActiveAt: serverTimestamp(),
           isOnline: true
         });
+        localStorage.removeItem('referredBy');
       } else {
-        const { user } = await signInWithEmailAndPassword(auth, email, password);
+        const { user } = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
         
         // Check if user document exists, if not create it (handles half-failed signups)
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         
         if (!userSnap.exists()) {
-          const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
+          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
           await setDoc(userRef, {
             uid: user.uid,
             email: user.email,
-            displayName: name || user.email?.split('@')[0] || 'User',
+            displayName: name.trim() || user.email?.split('@')[0] || 'User',
             coins: 0,
             totalEarned: 0,
             role: isAdmin ? 'admin' : 'user',
@@ -4013,7 +4254,7 @@ const Auth = () => {
             isOnline: true
           });
         } else {
-          const isAdmin = email === 'pishawrichappalhouse@gmail.com' || email === 'aiwithqammar@gmail.com';
+          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
           await updateDoc(userRef, { 
             role: isAdmin ? 'admin' : userSnap.data().role,
             lastLoginAt: serverTimestamp(),
@@ -4037,18 +4278,19 @@ const Auth = () => {
       let message = 'An unexpected error occurred. Please try again.';
       
       if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered. Please sign in instead.';
-        setIsSignUp(false); // Switch to sign in tab
-      } else if (error.code === 'auth/invalid-credential') {
-        message = 'Invalid email or password. Please check your credentials.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password is too weak. Please use at least 6 characters.';
-      } else if (error.code === 'auth/user-not-found') {
-        message = 'No account found with this email. Please sign up.';
-      } else if (error.code === 'auth/wrong-password') {
-        message = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        message = 'Sign-in window was closed before completion.';
+        message = 'This email is already in use. IMPORTANT: If you previously used Google to sign in, you cannot use a password. Please click the "Continue with Google" button instead.';
+        setIsSignUp(false);
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        const isOwner = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+        if (isOwner) {
+          message = 'Owner Login Error: Either your password is incorrect, or your account was created with Google. ACTION: 1. Try "Continue with Google". 2. If that fails, try "Forgot Password". 3. If you never registered, use "Sign Up".';
+        } else {
+          message = 'Invalid email or password. If you signed up with Google, please use the Google button.';
+        }
+      } else if (error.code === 'auth/too-many-requests') {
+        message = 'Too many failed attempts. Access to this account has been temporarily disabled. Please try again later or reset your password.';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your internet connection.';
       } else if (error.message) {
         message = error.message;
       }
@@ -4062,8 +4304,9 @@ const Auth = () => {
   const handleGoogle = async () => {
     try {
       setLoading(true);
+      const referredBy = localStorage.getItem('referredBy');
       const { user } = await signInWithPopup(auth, googleProvider);
-      const isAdmin = user.email === 'pishawrichappalhouse@gmail.com' || user.email === 'aiwithqammar@gmail.com';
+      const isAdmin = user.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com' || user.email?.toLowerCase() === 'aiwithqammar@gmail.com';
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
@@ -4075,6 +4318,9 @@ const Auth = () => {
           coins: 0,
           totalEarned: 0,
           role: isAdmin ? 'admin' : 'user',
+          referredBy: referredBy || null,
+          referralCount: 0,
+          referralEarnings: 0,
           membership: {
             plan: 'Free',
             status: 'none'
@@ -4084,6 +4330,7 @@ const Auth = () => {
           lastActiveAt: serverTimestamp(),
           isOnline: true
         });
+        localStorage.removeItem('referredBy');
       } else {
         await updateDoc(docRef, { 
           role: isAdmin ? 'admin' : docSnap.data().role,
@@ -4160,15 +4407,52 @@ const Auth = () => {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Password</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Password</label>
+              <div className="flex gap-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+                {!isSignUp && (
+                  <button 
+                    type="button"
+                    onClick={handleResetPassword}
+                    className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+            </div>
             <input 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-orange-500"
               required
             />
+            {email.trim().toLowerCase() === 'pishawrichappalhouse@gmail.com' && !isSignUp && (
+              <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100 space-y-2">
+                <p className="text-[10px] text-orange-800 font-bold uppercase tracking-widest">
+                  Owner Email Detected
+                </p>
+                <p className="text-[10px] text-orange-700 leading-relaxed font-medium">
+                  If this is your first time logging into this instance, please click the <strong>"Sign Up"</strong> tab above to create your admin credentials.
+                </p>
+                <button 
+                  type="button"
+                  onClick={() => setIsSignUp(true)}
+                  className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline"
+                >
+                  Click here to switch to Sign Up
+                </button>
+              </div>
+            )}
           </div>
           <button 
             type="submit"
@@ -4188,6 +4472,15 @@ const Auth = () => {
             <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4" />
             Continue with Google
           </button>
+
+          {window.self !== window.top && (
+            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+              <p className="text-[10px] text-blue-800 font-medium text-center leading-relaxed">
+                Running in preview mode? If Google login fails, try opening the app in a 
+                <a href={window.location.href} target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline">new tab</a>.
+              </p>
+            </div>
+          )}
 
           {/iPhone|iPad|iPod|Safari/i.test(navigator.userAgent) && !/Chrome|CriOS/i.test(navigator.userAgent) && (
             <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
@@ -4216,15 +4509,28 @@ const Auth = () => {
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<PlatformSettings>({ coinValuePerView: 1, minWithdrawal: 1000 });
+  const [settings, setSettings] = useState<PlatformSettings>({ coinValuePerView: 1, minWithdrawal: 1000, referralBonus: 100 });
+  const location = useLocation();
 
   useEffect(() => {
+    // Capture referral code
+    const params = new URLSearchParams(location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('referredBy', ref);
+    }
+
     const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const unsubUser = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data() as UserProfile;
-            
+            const isAdminEmail = firebaseUser.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com' || firebaseUser.email?.toLowerCase() === 'aiwithqammar@gmail.com';
+
+            if (isAdminEmail && userData.role !== 'admin') {
+              updateDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin' }).catch(console.error);
+            }
+
             // Check for membership expiration
             if (userData.membership?.status === 'approved' && userData.membership.expiresAt) {
               const now = Timestamp.now();
@@ -4268,7 +4574,8 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Bootstrap settings if they don't exist and user is authenticated
         setDoc(doc(db, 'settings', 'global'), {
           coinValuePerView: 1,
-          minWithdrawal: 1000
+          minWithdrawal: 1000,
+          referralBonus: 100
         }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'settings/global'));
       }
     });

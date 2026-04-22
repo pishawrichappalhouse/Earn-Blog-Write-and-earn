@@ -12,6 +12,9 @@
         "coins": { "type": "number", "description": "Current coins balance" },
         "totalEarned": { "type": "number", "description": "Total coins earned ever" },
         "role": { "type": "string", "enum": ["user", "admin"] },
+        "referredBy": { "type": "string", "description": "UID of the user who referred this user" },
+        "referralCount": { "type": "number", "description": "Number of users referred by this user" },
+        "referralEarnings": { "type": "number", "description": "Total coins earned from referrals" },
         "membership": {
           "type": "object",
           "properties": {
@@ -86,9 +89,10 @@
       "type": "object",
       "properties": {
         "coinValuePerView": { "type": "number", "description": "How many coins earned per view" },
-        "minWithdrawal": { "type": "number", "description": "Minimum coins required for withdrawal" }
+        "minWithdrawal": { "type": "number", "description": "Minimum coins required for withdrawal" },
+        "referralBonus": { "type": "number", "description": "Coins awarded for a successful referral" }
       },
-      "required": ["coinValuePerView", "minWithdrawal"]
+      "required": ["coinValuePerView", "minWithdrawal", "referralBonus"]
     },
     "Comment": {
       "title": "Comment",
