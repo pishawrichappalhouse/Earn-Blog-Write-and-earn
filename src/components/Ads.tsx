@@ -86,6 +86,40 @@ export const AdBanner468x60: React.FC = () => {
   );
 };
 
+export const AdBanner728x90: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Set atOptions on window
+    (window as any).atOptions = {
+      'key' : 'b714ff8dd9804eadbbf14d4ced6ac8c1',
+      'format' : 'iframe',
+      'height' : 90,
+      'width' : 728,
+      'params' : {}
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://valuationappeared.com/b714ff8dd9804eadbbf14d4ced6ac8c1/invoke.js';
+    script.async = true;
+    containerRef.current.appendChild(script);
+
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, []);
+
+  return (
+    <div className="my-4 flex justify-center overflow-hidden">
+      <div ref={containerRef}></div>
+    </div>
+  );
+};
+
 export const SMARTLINK_URL = 'https://valuationappeared.com/uiznc96u0i?key=d2c89f38d99d0694da836d364c4733c0';
 
 export const AdSmartLink: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => {

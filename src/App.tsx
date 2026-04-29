@@ -92,7 +92,7 @@ import {
 import { auth, db, googleProvider } from './firebase';
 import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
 import { cn } from './lib/utils';
-import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdSmartLink } from './components/Ads';
+import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink } from './components/Ads';
 
 // --- Types ---
 
@@ -1325,7 +1325,12 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
   if (!isAdAllowed(location.pathname) || !isEligible) return null;
 
   if (position === 'top' || position === 'footer') {
-    return <AdBanner468x60 />;
+    return (
+      <div className="space-y-2">
+        <AdBanner728x90 />
+        <AdBanner468x60 />
+      </div>
+    );
   }
 
   return <AdNativeBanner />;
@@ -1986,6 +1991,12 @@ const PostView = () => {
         }
       } catch (error) {
         console.error('Failed to increment views:', error);
+        // Explicitly handle firestore error for better diagnosis
+        try {
+          handleFirestoreError(error, OperationType.UPDATE, `posts/${id} or users/author`);
+        } catch {
+          // Ignore re-throw
+        }
       }
     };
 
@@ -4897,6 +4908,7 @@ export default function App() {
           <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
             <Toaster position="top-center" richColors />
             <Navbar />
+            <AdBanner position="top" />
             <MembershipNotice />
             <main>
               <Routes>
@@ -4915,6 +4927,7 @@ export default function App() {
                 <Route path="/terms" element={<PrivacyPolicy />} />
               </Routes>
             </main>
+            <AdBanner position="footer" />
             <StickyAd />
             <Footer />
           </div>

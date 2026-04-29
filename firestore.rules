@@ -83,8 +83,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email == "pishawrichappalhouse@gmail.com" ||
-         request.auth.token.email == "aiwithqammar@gmail.com" ||
+        (request.auth.token.email.lower() == "pishawrichappalhouse@gmail.com" ||
+         request.auth.token.email.lower() == "aiwithqammar@gmail.com" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -194,7 +194,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
                     (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && (request.auth.token.email == "pishawrichappalhouse@gmail.com" || request.auth.token.email == "aiwithqammar@gmail.com")));
-      allow update: if isAuthenticated() && (
+      allow update: if (isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referralCount', 'referralEarnings']) &&
@@ -204,6 +204,14 @@ service cloud.firestore {
            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['membership']) ||
            request.resource.data.membership.status == 'pending'
          ))
+      )) || (
+        // Allow coin/earned increment (award for view)
+        // This is necessary because views increment coins for the author
+        // We allow this even for unauthenticated users (viewers)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['coins', 'totalEarned']) &&
+        request.resource.data.coins >= resource.data.coins &&
+        request.resource.data.totalEarned >= resource.data.totalEarned &&
+        (request.resource.data.coins - resource.data.coins) == (request.resource.data.totalEarned - resource.data.totalEarned)
       );
     }
 
