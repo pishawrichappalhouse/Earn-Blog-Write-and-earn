@@ -41,7 +41,7 @@ interface AppData {
     totalPayouts: number;
     withdrawalHistory: { id: string; amount: number; date: string }[];
   };
-  adsenseConfig?: {
+  adsterraConfig?: {
     publisherId: string;
     isEnabled: boolean;
   };
@@ -92,8 +92,8 @@ const INITIAL_DATA: AppData = {
     totalPayouts: 120.00,
     withdrawalHistory: [],
   },
-  adsenseConfig: {
-    publisherId: 'ca-pub-6776734432817673',
+  adsterraConfig: {
+    publisherId: '29004168', // Using Smartlink ID as default
     isEnabled: true,
   }
 };
@@ -265,11 +265,11 @@ export const storage = {
     return false;
   },
 
-  getAdSenseConfig: () => storage.getData().adsenseConfig,
+  getAdsterraConfig: () => storage.getData().adsterraConfig,
 
-  updateAdSenseConfig: (config: { publisherId: string; isEnabled: boolean }) => {
+  updateAdsterraConfig: (config: { publisherId: string; isEnabled: boolean }) => {
     const data = storage.getData();
-    data.adsenseConfig = config;
+    data.adsterraConfig = config;
     storage.saveData(data);
   },
 };
