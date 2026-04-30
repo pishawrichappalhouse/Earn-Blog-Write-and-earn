@@ -2,12 +2,30 @@ import React, { useEffect, useRef } from 'react';
 
 export const AdSocialBar: React.FC = () => {
   useEffect(() => {
+    console.log('AdSocialBar: Initializing Adsterra Social Bar...');
+    const SCRIPT_ID = 'adsterra-social-bar';
+    
+    // Check if script already exists to prevent duplicates
+    if (document.getElementById(SCRIPT_ID)) {
+      console.log('AdSocialBar: Script already exists, skipping load.');
+      return;
+    }
+
     const script = document.createElement('script');
+    script.id = SCRIPT_ID;
     script.src = 'https://valuationappeared.com/b3/65/6b/b3656bf39ce39a84421fc3ec712db405.js';
     script.async = true;
+    script.setAttribute('data-cfasync', 'false');
+    
+    script.onload = () => console.log('AdSocialBar: Script loaded successfully.');
+    script.onerror = (e) => console.error('AdSocialBar: Script failed to load.', e);
+    
     document.body.appendChild(script);
+
     return () => {
-      document.body.removeChild(script);
+      // For social bar, we might want to keep it active even if component unmounts 
+      // but if we really want to clean up:
+      // document.body.removeChild(script);
     };
   }, []);
   return null;
@@ -15,12 +33,26 @@ export const AdSocialBar: React.FC = () => {
 
 export const AdPopunder: React.FC = () => {
   useEffect(() => {
+    console.log('AdPopunder: Initializing Adsterra Popunder...');
+    const SCRIPT_ID = 'adsterra-popunder';
+
+    if (document.getElementById(SCRIPT_ID)) {
+      console.log('AdPopunder: Script already exists, skipping load.');
+      return;
+    }
+
     const script = document.createElement('script');
+    script.id = SCRIPT_ID;
     script.src = 'https://valuationappeared.com/3e/fc/70/3efc70e8d99c19daed6c56ef14996d92.js';
     script.async = true;
+    script.setAttribute('data-cfasync', 'false');
+    
+    script.onload = () => console.log('AdPopunder: Script loaded successfully.');
+    script.onerror = (e) => console.error('AdPopunder: Script failed to load.', e);
+
     document.body.appendChild(script);
     return () => {
-      document.body.removeChild(script);
+      // document.body.removeChild(script);
     };
   }, []);
   return null;
@@ -28,14 +60,23 @@ export const AdPopunder: React.FC = () => {
 
 export const AdNativeBanner: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = React.useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    console.log('AdNativeBanner: Initializing...');
 
     const script = document.createElement('script');
     script.src = 'https://valuationappeared.com/18b5e3576860dadf9e5703e77ea1bf8f/invoke.js';
     script.async = true;
     script.setAttribute('data-cfasync', 'false');
+    
+    script.onload = () => console.log('AdNativeBanner: invoke.js loaded.');
+    script.onerror = () => {
+      console.error('AdNativeBanner: Failed to load script.');
+      setError(true);
+    };
+
     containerRef.current.appendChild(script);
 
     return () => {
@@ -46,8 +87,13 @@ export const AdNativeBanner: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-4 flex justify-center">
-      <div id="container-18b5e3576860dadf9e5703e77ea1bf8f" ref={containerRef}></div>
+    <div className="my-4 flex flex-col items-center justify-center min-h-[100px] w-full">
+      <div 
+        id="container-18b5e3576860dadf9e5703e77ea1bf8f" 
+        ref={containerRef}
+        className="w-full max-w-full overflow-hidden flex justify-center"
+      ></div>
+      {error && <p className="text-[10px] text-gray-400 mt-2">Advertiser link failed to load.</p>}
     </div>
   );
 };
@@ -57,6 +103,7 @@ export const AdBanner468x60: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    console.log('AdBanner468x60: Initializing...');
 
     // Set atOptions on window
     (window as any).atOptions = {
@@ -70,6 +117,9 @@ export const AdBanner468x60: React.FC = () => {
     const script = document.createElement('script');
     script.src = 'https://valuationappeared.com/c204efdcd9fc62cf37e2eae828137f0f/invoke.js';
     script.async = true;
+    
+    script.onload = () => console.log('AdBanner468x60: invoke.js loaded.');
+    
     containerRef.current.appendChild(script);
 
     return () => {
@@ -80,8 +130,8 @@ export const AdBanner468x60: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-4 flex justify-center overflow-hidden px-2">
-      <div ref={containerRef} className="max-w-full overflow-hidden"></div>
+    <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
+      <div ref={containerRef} className="max-w-full overflow-hidden min-h-[60px]"></div>
     </div>
   );
 };
@@ -91,6 +141,7 @@ export const AdBanner728x90: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    console.log('AdBanner728x90: Initializing...');
 
     // Set atOptions on window
     (window as any).atOptions = {
@@ -104,6 +155,9 @@ export const AdBanner728x90: React.FC = () => {
     const script = document.createElement('script');
     script.src = 'https://valuationappeared.com/b714ff8dd9804eadbbf14d4ced6ac8c1/invoke.js';
     script.async = true;
+
+    script.onload = () => console.log('AdBanner728x90: invoke.js loaded.');
+
     containerRef.current.appendChild(script);
 
     return () => {
@@ -114,8 +168,8 @@ export const AdBanner728x90: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-4 flex justify-center overflow-hidden px-2">
-      <div ref={containerRef} className="max-w-full overflow-hidden"></div>
+    <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
+      <div ref={containerRef} className="max-w-full overflow-hidden min-h-[90px]"></div>
     </div>
   );
 };

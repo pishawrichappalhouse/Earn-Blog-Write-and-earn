@@ -701,6 +701,10 @@ const Membership = () => {
         </p>
       </div>
 
+      <div className="mb-12">
+        <AdBanner position="top" />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {plans.map((plan) => (
           <motion.div
@@ -754,6 +758,10 @@ const Membership = () => {
         ))}
       </div>
 
+      <div className="mt-16">
+        <AdNativeBanner />
+      </div>
+
       <div className="mt-20 bg-gray-900 rounded-[40px] p-12 text-center text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32" />
@@ -764,6 +772,10 @@ const Membership = () => {
         <Link to="/contact" className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 transition-all relative z-10">
           Contact Support <ArrowRight className="w-4 h-4" />
         </Link>
+      </div>
+
+      <div className="mt-12">
+        <AdBanner position="footer" />
       </div>
     </div>
   );
@@ -1326,14 +1338,24 @@ const AdBanner = ({ position }: { position: 'top' | 'sidebar' | 'footer' | 'inli
 
   if (position === 'top' || position === 'footer') {
     return (
-      <div className="space-y-2">
-        <AdBanner728x90 />
-        <AdBanner468x60 />
+      <div className="w-full flex flex-col items-center gap-2 px-2 overflow-hidden">
+        {/* Only show 728x90 on large screens */}
+        <div className="hidden lg:block w-full">
+          <AdBanner728x90 />
+        </div>
+        {/* Show 468x60 on medium/small screens, hidden on very small if needed */}
+        <div className="block lg:hidden w-full max-w-full">
+          <AdBanner468x60 />
+        </div>
       </div>
     );
   }
 
-  return <AdNativeBanner />;
+  return (
+    <div className="w-full overflow-hidden flex justify-center px-2">
+      <AdNativeBanner />
+    </div>
+  );
 };
 
 // --- Pages ---
@@ -1709,7 +1731,8 @@ const Home = () => {
 
 const PrivacyPolicy = () => (
   <div className="max-w-4xl mx-auto px-4 py-20">
-    <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100 space-y-8">
+    <AdBanner position="top" />
+    <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100 space-y-8 mt-12">
       <div className="text-center space-y-4 mb-12">
         <h1 className="text-4xl font-black text-gray-900 tracking-tight">Privacy Policy</h1>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Last updated: April 2026</p>
@@ -1721,6 +1744,8 @@ const PrivacyPolicy = () => (
           At BloggerPro, we collect information that you provide directly to us when you create an account, publish stories, or contact us. This may include your name, email address, and any other information you choose to provide.
         </p>
       </section>
+
+      <AdBanner position="inline" />
 
       <section className="space-y-4">
         <h2 className="text-2xl font-bold text-gray-900">2. How We Use Your Information</h2>
@@ -1744,6 +1769,8 @@ const PrivacyPolicy = () => (
         </p>
       </section>
 
+      <AdNativeBanner />
+
       <section className="space-y-4">
         <h2 className="text-2xl font-bold text-gray-900">4. Data Security</h2>
         <p className="text-gray-600 leading-relaxed">
@@ -1751,12 +1778,16 @@ const PrivacyPolicy = () => (
         </p>
       </section>
     </div>
+    <div className="mt-12">
+      <AdBanner position="footer" />
+    </div>
   </div>
 );
 
 const About = () => (
   <div className="max-w-4xl mx-auto px-4 py-20">
-    <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100 space-y-12">
+    <AdBanner position="top" />
+    <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100 space-y-12 mt-12">
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-black text-gray-900 tracking-tight">About BloggerPro</h1>
         <div className="w-20 h-1 bg-orange-500 mx-auto rounded-full" />
@@ -1768,6 +1799,7 @@ const About = () => (
           <p className="text-gray-600 leading-relaxed">
             BloggerPro – Insights & Knowledge is a professional platform dedicated to providing high-quality blogging tips, online earning strategies, and comprehensive knowledge sharing.
           </p>
+          <AdBanner position="inline" />
           <p className="text-gray-600 leading-relaxed">
             We believe that everyone has a story to tell and valuable knowledge to share. Our platform provides the tools and community to help you reach a global audience.
           </p>
@@ -1779,6 +1811,8 @@ const About = () => (
           </p>
         </div>
       </div>
+
+      <AdNativeBanner />
 
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900 text-center">Why Choose Us?</h2>
@@ -1795,6 +1829,9 @@ const About = () => (
           ))}
         </div>
       </div>
+    </div>
+    <div className="mt-12">
+      <AdBanner position="footer" />
     </div>
   </div>
 );
@@ -1813,7 +1850,8 @@ const Contact = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-20">
-      <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100">
+      <AdBanner position="top" />
+      <div className="bg-white rounded-[40px] p-12 shadow-xl border border-gray-100 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           <div className="space-y-8">
             <div className="space-y-4">
@@ -1843,6 +1881,8 @@ const Contact = () => {
                 </div>
               </div>
             </div>
+
+            <AdBanner position="inline" />
 
             <div className="p-6 bg-orange-50 rounded-2xl border border-orange-100">
               <p className="text-orange-800 text-sm font-bold flex items-center gap-2">
@@ -1889,6 +1929,9 @@ const Contact = () => {
             </button>
           </form>
         </div>
+      </div>
+      <div className="mt-12">
+        <AdBanner position="footer" />
       </div>
     </div>
   );
