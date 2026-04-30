@@ -762,6 +762,8 @@ const Membership = () => {
         <AdNativeBanner />
       </div>
 
+      <AdBanner position="inline" />
+
       <div className="mt-20 bg-gray-900 rounded-[40px] p-12 text-center text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32" />
@@ -1777,6 +1779,11 @@ const PrivacyPolicy = () => (
           We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction.
         </p>
       </section>
+
+      <AdBanner position="inline" />
+    </div>
+    <div className="mt-12">
+      <AdNativeBanner />
     </div>
     <div className="mt-12">
       <AdBanner position="footer" />
@@ -1829,6 +1836,11 @@ const About = () => (
           ))}
         </div>
       </div>
+
+      <AdBanner position="inline" />
+    </div>
+    <div className="mt-12">
+      <AdNativeBanner />
     </div>
     <div className="mt-12">
       <AdBanner position="footer" />
@@ -1890,6 +1902,8 @@ const Contact = () => {
                 "We usually respond within 24–48 hours"
               </p>
             </div>
+
+            <AdNativeBanner />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -1911,6 +1925,9 @@ const Contact = () => {
                 placeholder="john@example.com"
               />
             </div>
+
+            <AdBanner position="inline" />
+
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Message</label>
               <textarea 
@@ -1930,6 +1947,11 @@ const Contact = () => {
           </form>
         </div>
       </div>
+
+      <div className="mt-12">
+        <AdNativeBanner />
+      </div>
+
       <div className="mt-12">
         <AdBanner position="footer" />
       </div>
