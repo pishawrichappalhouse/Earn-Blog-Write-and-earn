@@ -4322,7 +4322,7 @@ const Auth = () => {
         }
         
         const { user: newUser } = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-        const isAdminAccount = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+        const isAdminAccount = cleanEmail === 'pishawrichappalhouse@gmail.com';
         await setDoc(doc(db, 'users', newUser.uid), {
           uid: newUser.uid,
           email: newUser.email,
@@ -4370,7 +4370,7 @@ const Auth = () => {
         const userSnap = await getDoc(userRef);
         
         if (!userSnap.exists()) {
-          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com';
           await setDoc(userRef, {
             uid: logUser.uid,
             email: logUser.email,
@@ -4388,9 +4388,9 @@ const Auth = () => {
             isOnline: true
           });
         } else {
-          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+          const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com';
           await updateDoc(userRef, { 
-            role: isAdmin ? 'admin' : userSnap.data().role,
+            role: isAdmin ? 'admin' : (cleanEmail === 'aiwithqammar@gmail.com' ? 'user' : userSnap.data().role),
             lastLoginAt: serverTimestamp(),
             lastActiveAt: serverTimestamp(),
             isOnline: true
@@ -4417,7 +4417,7 @@ const Auth = () => {
         setIsSignUp(false);
       } else if (isCredentialError) {
         // Smart check for Google users who forgot their login method
-        const isOwner = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+        const isOwner = cleanEmail === 'pishawrichappalhouse@gmail.com';
         try {
           // fetchSignInMethodsForEmail is the best way to verify the registration method
           const methods = await fetchSignInMethodsForEmail(auth, cleanEmail);
@@ -4456,7 +4456,7 @@ const Auth = () => {
       
       const referredBy = localStorage.getItem('referredBy');
       const { user } = await signInWithPopup(auth, provider);
-      const isAdmin = user.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com' || user.email?.toLowerCase() === 'aiwithqammar@gmail.com';
+      const isAdmin = user.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com';
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       
@@ -4704,10 +4704,12 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const unsubUser = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data() as UserProfile;
-            const isAdminEmail = firebaseUser.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com' || firebaseUser.email?.toLowerCase() === 'aiwithqammar@gmail.com';
+            const isAdminEmail = firebaseUser.email?.toLowerCase() === 'pishawrichappalhouse@gmail.com';
 
             if (isAdminEmail && userData.role !== 'admin') {
               updateDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin' }).catch(console.error);
+            } else if (!isAdminEmail && userData.role === 'admin' && firebaseUser.email?.toLowerCase() === 'aiwithqammar@gmail.com') {
+              updateDoc(doc(db, 'users', firebaseUser.uid), { role: 'user' }).catch(console.error);
             }
 
             // Check for membership expiration
