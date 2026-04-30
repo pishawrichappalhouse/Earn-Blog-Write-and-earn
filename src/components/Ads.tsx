@@ -59,117 +59,94 @@ export const AdPopunder: React.FC = () => {
 };
 
 export const AdNativeBanner: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = React.useState(false);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    console.log('AdNativeBanner: Initializing...');
-
-    const script = document.createElement('script');
-    script.src = 'https://valuationappeared.com/18b5e3576860dadf9e5703e77ea1bf8f/invoke.js';
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    
-    script.onload = () => console.log('AdNativeBanner: invoke.js loaded.');
-    script.onerror = () => {
-      console.error('AdNativeBanner: Failed to load script.');
-      setError(true);
-    };
-
-    containerRef.current.appendChild(script);
-
-    return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
-    };
-  }, []);
-
   return (
-    <div className="my-4 flex flex-col items-center justify-center min-h-[100px] w-full">
-      <div 
-        id="container-18b5e3576860dadf9e5703e77ea1bf8f" 
-        ref={containerRef}
-        className="w-full max-w-full overflow-hidden flex justify-center"
-      ></div>
-      {error && <p className="text-[10px] text-gray-400 mt-2">Advertiser link failed to load.</p>}
+    <div className="my-4 flex flex-col items-center justify-center w-full overflow-hidden">
+      <iframe
+        title="Native Ad"
+        style={{ width: '100%', height: '300px', border: 'none', overflow: 'hidden' }}
+        srcDoc={`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { margin: 0; padding: 0; display: flex; justify-content: center; }
+                #container-18b5e3576860dadf9e5703e77ea1bf8f { width: 100%; }
+                #container-18b5e3576860dadf9e5703e77ea1bf8f > div { margin: 0 auto !important; }
+              </style>
+            </head>
+            <body>
+              <div id="container-18b5e3576860dadf9e5703e77ea1bf8f"></div>
+              <script type="text/javascript">
+                atOptions = {
+                  'key' : '18b5e3576860dadf9e5703e77ea1bf8f',
+                  'format' : 'js',
+                  'params' : {}
+                };
+              </script>
+              <script type="text/javascript" src="https://valuationappeared.com/18b5e3576860dadf9e5703e77ea1bf8f/invoke.js"></script>
+            </body>
+          </html>
+        `}
+      />
     </div>
   );
 };
 
 export const AdBanner468x60: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    console.log('AdBanner468x60: Initializing...');
-
-    // Set atOptions on window
-    (window as any).atOptions = {
-      'key' : 'c204efdcd9fc62cf37e2eae828137f0f',
-      'format' : 'iframe',
-      'height' : 60,
-      'width' : 468,
-      'params' : {}
-    };
-
-    const script = document.createElement('script');
-    script.src = 'https://valuationappeared.com/c204efdcd9fc62cf37e2eae828137f0f/invoke.js';
-    script.async = true;
-    
-    script.onload = () => console.log('AdBanner468x60: invoke.js loaded.');
-    
-    containerRef.current.appendChild(script);
-
-    return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
-    };
-  }, []);
-
   return (
     <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
-      <div ref={containerRef} className="max-w-full overflow-hidden min-h-[60px]"></div>
+      <iframe
+        title="Banner 468x60"
+        style={{ width: '468px', height: '60px', border: 'none', overflow: 'hidden' }}
+        scrolling="no"
+        srcDoc={`
+          <!DOCTYPE html>
+          <html>
+            <body style="margin:0; padding:0;">
+              <script type="text/javascript">
+                atOptions = {
+                  'key' : 'c204efdcd9fc62cf37e2eae828137f0f',
+                  'format' : 'iframe',
+                  'height' : 60,
+                  'width' : 468,
+                  'params' : {}
+                };
+              </script>
+              <script type="text/javascript" src="https://valuationappeared.com/c204efdcd9fc62cf37e2eae828137f0f/invoke.js"></script>
+            </body>
+          </html>
+        `}
+      />
     </div>
   );
 };
 
 export const AdBanner728x90: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    console.log('AdBanner728x90: Initializing...');
-
-    // Set atOptions on window
-    (window as any).atOptions = {
-      'key' : 'b714ff8dd9804eadbbf14d4ced6ac8c1',
-      'format' : 'iframe',
-      'height' : 90,
-      'width' : 728,
-      'params' : {}
-    };
-
-    const script = document.createElement('script');
-    script.src = 'https://valuationappeared.com/b714ff8dd9804eadbbf14d4ced6ac8c1/invoke.js';
-    script.async = true;
-
-    script.onload = () => console.log('AdBanner728x90: invoke.js loaded.');
-
-    containerRef.current.appendChild(script);
-
-    return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
-    };
-  }, []);
-
   return (
     <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
-      <div ref={containerRef} className="max-w-full overflow-hidden min-h-[90px]"></div>
+      <iframe
+        title="Banner 728x90"
+        style={{ width: '728px', height: '90px', border: 'none', overflow: 'hidden' }}
+        scrolling="no"
+        srcDoc={`
+          <!DOCTYPE html>
+          <html>
+            <body style="margin:0; padding:0;">
+              <script type="text/javascript">
+                atOptions = {
+                  'key' : 'b714ff8dd9804eadbbf14d4ced6ac8c1',
+                  'format' : 'iframe',
+                  'height' : 90,
+                  'width' : 728,
+                  'params' : {}
+                };
+              </script>
+              <script type="text/javascript" src="https://valuationappeared.com/b714ff8dd9804eadbbf14d4ced6ac8c1/invoke.js"></script>
+            </body>
+          </html>
+        `}
+      />
     </div>
   );
 };
