@@ -286,7 +286,17 @@ const SharePost = ({ title, id }: { title: string, id: string }) => {
 const ReferralSection = () => {
   const { user, settings } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [myReferrals, setMyReferrals] = useState<UserProfile[]>([]);
   
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'users'), where('referredBy', '==', user.uid));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setMyReferrals(snapshot.docs.map(doc => doc.data() as UserProfile));
+    });
+    return () => unsub();
+  }, [user]);
+
   if (!user) return null;
 
   const referralUrl = `${window.location.origin}/login?ref=${user.uid}`;
@@ -304,55 +314,95 @@ const ReferralSection = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[40px] p-8 text-white relative overflow-hidden shadow-xl shadow-orange-200">
-      <div className="relative z-10">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
-            <Users className="w-6 h-6" />
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-[40px] p-8 text-white relative overflow-hidden shadow-xl shadow-orange-200">
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black tracking-tight">Refer & Earn</h3>
+              <p className="text-orange-100 text-xs font-medium">Invite friends and get {settings.referralBonus || 100} Coins!</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-black tracking-tight">Refer & Earn</h3>
-            <p className="text-orange-100 text-xs font-medium">Invite friends and get {settings.referralBonus || 100} Coins!</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
-            <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Total Referrals</p>
-            <p className="text-2xl font-black leading-none">{user.referralCount || 0}</p>
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
+              <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Total Referrals</p>
+              <p className="text-2xl font-black leading-none">{user.referralCount || 0}</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
+              <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Referral Earnings</p>
+              <p className="text-2xl font-black leading-none">{user.referralEarnings || 0}</p>
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-4 border border-white/10">
-            <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest mb-1">Referral Earnings</p>
-            <p className="text-2xl font-black leading-none">{user.referralEarnings || 0}</p>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest">Your Referral Link</p>
-          <div className="flex gap-2">
-            <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 text-xs font-medium border border-white/20 truncate">
-              {referralUrl}
+          <div className="space-y-4">
+            <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest">Your Referral Link</p>
+            <div className="flex gap-2">
+              <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 text-xs font-medium border border-white/20 truncate">
+                {referralUrl}
+              </div>
+              <button 
+                onClick={copyLink}
+                className="px-4 bg-white text-orange-600 rounded-2xl font-bold hover:bg-orange-50 transition-all flex items-center gap-2 text-xs h-10 self-center"
+              >
+                {copied ? <CheckIcon className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
             </div>
             <button 
-              onClick={copyLink}
-              className="px-4 bg-white text-orange-600 rounded-2xl font-bold hover:bg-orange-50 transition-all flex items-center gap-2 text-xs"
+              onClick={shareToWhatsApp}
+              className="w-full py-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 shadow-lg"
             >
-              {copied ? <CheckIcon className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied' : 'Copy'}
+              <MessageCircle className="w-5 h-5" /> Share on WhatsApp
             </button>
           </div>
-          <button 
-            onClick={shareToWhatsApp}
-            className="w-full py-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all flex items-center justify-center gap-2 shadow-lg"
-          >
-            <MessageCircle className="w-5 h-5" /> Share on WhatsApp
-          </button>
         </div>
+        
+        {/* Decorative circles */}
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-black/10 rounded-full blur-3xl" />
       </div>
-      
-      {/* Decorative circles */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-black/10 rounded-full blur-3xl" />
+
+      {myReferrals.length > 0 && (
+        <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">My Referrals</h4>
+            <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-3 py-1 rounded-full uppercase tracking-widest">
+              {myReferrals.length} Users
+            </span>
+          </div>
+          <div className="space-y-4">
+            {myReferrals.map((refUser) => (
+              <div key={refUser.uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-3xl border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                    {refUser.photoURL ? (
+                      <img src={refUser.photoURL} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 italic text-gray-400 text-[10px]">BP</div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-900">{refUser.displayName}</p>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-widest font-black">
+                      {refUser.membership?.plan || 'Free'} Plan
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Earnings</p>
+                  <p className="text-xs font-black text-orange-600">
+                    {refUser.membership?.status === 'approved' ? settings.referralBonus : 0} Coins
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2857,7 +2907,7 @@ const BPAPanel = () => {
   const [allWithdrawals, setAllWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [allDeposits, setAllDeposits] = useState<Deposit[]>([]);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
-  const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0 });
+  const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0, totalReferrals: 0 });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -2881,10 +2931,12 @@ const BPAPanel = () => {
     const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
       const users = snapshot.docs.map(doc => doc.data() as UserProfile);
       setAllUsers(users);
+      const totalReferrals = users.reduce((acc, u) => acc + (u.referralCount || 0), 0);
       setPlatformStats(prev => ({
         ...prev,
         totalUsers: users.length,
-        totalEarnings: users.reduce((acc, u) => acc + u.totalEarned, 0)
+        totalEarnings: users.reduce((acc, u) => acc + u.totalEarned, 0),
+        totalReferrals: totalReferrals
       }));
     });
 
@@ -3122,7 +3174,6 @@ const BPAPanel = () => {
               await updateDoc(referrerRef, {
                 coins: increment(settings.referralBonus || 100),
                 totalEarned: increment(settings.referralBonus || 100),
-                referralCount: increment(1),
                 referralEarnings: increment(settings.referralBonus || 100)
               });
               
@@ -3342,7 +3393,7 @@ const BPAPanel = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <div className="bg-purple-600 p-8 rounded-[32px] text-white shadow-xl shadow-purple-100">
           <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Users</p>
           <p className="text-4xl font-bold">{platformStats.totalUsers}</p>
@@ -3354,6 +3405,10 @@ const BPAPanel = () => {
         <div className="bg-green-600 p-8 rounded-[32px] text-white shadow-xl shadow-green-100">
           <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Payouts</p>
           <p className="text-4xl font-bold">{platformStats.totalWithdrawals.toFixed(0)} Coins</p>
+        </div>
+        <div className="bg-orange-600 p-8 rounded-[32px] text-white shadow-xl shadow-orange-100">
+          <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Total Referrals</p>
+          <p className="text-4xl font-bold">{platformStats.totalReferrals}</p>
         </div>
       </div>
 
@@ -3917,7 +3972,8 @@ const BPAPanel = () => {
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Badge</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Referrals</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Referred By</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Activity</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Joined</th>
                   <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Balance</th>
@@ -3925,189 +3981,149 @@ const BPAPanel = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {allUsers.map(u => (
-                  <tr key={u.uid}>
+                {allUsers.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(u => (
+                  <tr key={u.uid} className="hover:bg-gray-50 transition-colors">
                     <td className="px-8 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden relative">
-                          {u.photoURL && <img src={u.photoURL} alt={u.displayName} />}
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-100 relative">
+                          {u.photoURL ? (
+                            <img src={u.photoURL} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-400" />
+                          )}
                           <div className={cn(
-                            "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm",
+                            "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white shadow-sm",
                             u.isOnline ? "bg-green-500" : "bg-gray-300"
                           )} />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-gray-900">{u.displayName}</p>
-                          <p className="text-xs text-gray-400">{u.email}</p>
+                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{u.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-4">
                       <div className="flex items-center gap-1.5">
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          u.isOnline ? "bg-green-500 animate-pulse" : "bg-gray-300"
-                        )} />
                         <span className={cn(
-                          "text-[10px] font-bold uppercase tracking-wider",
-                          u.isOnline ? "text-green-600" : "text-gray-400"
+                          "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                          u.isOnline ? "bg-green-50 border-green-100 text-green-600" : "bg-gray-50 border-gray-100 text-gray-400"
                         )}>
                           {u.isOnline ? 'Online' : 'Offline'}
                         </span>
                       </div>
                     </td>
-                    <td className="px-8 py-4 capitalize text-sm font-medium">{u.role}</td>
                     <td className="px-8 py-4">
-                      {editingUserBadge === u.uid ? (
-                        <div className="flex flex-col gap-2">
-                          {!isCustomBadge ? (
-                            <select 
-                              value={['Pro', 'Super Pro', 'Legend Pro', ''].includes(newBadge) ? newBadge : 'custom'}
-                              onChange={(e) => {
-                                if (e.target.value === 'custom') {
-                                  setIsCustomBadge(true);
-                                } else {
-                                  setNewBadge(e.target.value);
-                                }
-                              }}
-                              className="w-32 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
-                            >
-                              <option value="">Reset Membership</option>
-                              <option value="Pro">Pro (Plan 1)</option>
-                              <option value="Super Pro">Super Pro (Plan 2)</option>
-                              <option value="Legend Pro">Legend Pro (Plan 3)</option>
-                              <option value="custom">Custom Badge...</option>
-                            </select>
-                          ) : (
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md",
+                        u.role === 'admin' ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                      )}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4 text-center">
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-black text-gray-900">{u.referralCount || 0}</span>
+                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest whitespace-nowrap">{u.referralEarnings || 0} Coins</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      {u.referredBy ? (
+                        <div className="flex flex-col max-w-[120px]">
+                          <span className="text-xs font-bold text-gray-900 truncate">
+                            {allUsers.find(refUser => refUser.uid === u.referredBy)?.displayName || 'User'}
+                          </span>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter truncate opacity-70">ID: {u.referredBy.slice(0, 8)}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold opacity-40 italic">Direct</span>
+                      )}
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Active</p>
+                        <span className="text-[11px] font-medium text-gray-700 whitespace-nowrap">
+                          {u.lastActiveAt?.toDate ? format(u.lastActiveAt.toDate(), 'MMM d, h:mm a') : 'Never'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {u.createdAt?.toDate ? format(u.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1">
+                          <Coins className="w-3 h-3 text-orange-500" />
+                          <span className="text-sm font-black text-gray-900">{u.coins.toLocaleString()}</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total: {u.totalEarned.toLocaleString()}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {editingUserBadge === u.uid ? (
+                          <div className="flex items-center gap-1.5">
                             <input 
                               type="text" 
                               value={newBadge}
                               onChange={(e) => setNewBadge(e.target.value)}
-                              className="w-32 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                              placeholder="Badge name"
+                              className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
+                              placeholder="Badge..."
                               autoFocus
                             />
-                          )}
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => handleUpdateUserBadge(u.uid)}
-                              className="flex-1 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => handleUpdateUserBadge(u.uid)} className="p-1 px-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
+                            <button onClick={() => setEditingUserBadge(null)} className="p-1 px-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : editingUserCoins === u.uid ? (
+                          <div className="flex items-center gap-1.5">
+                            <input 
+                              type="number" 
+                              value={coinAdjustment}
+                              onChange={(e) => setCoinAdjustment(e.target.value)}
+                              className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
+                            />
+                            <button onClick={() => handleUpdateUserCoins(u.uid)} className="p-1 px-1.5 bg-green-500 text-white rounded-lg"><Check className="w-4 h-4" /></button>
+                            <button onClick={() => setEditingUserCoins(null)} className="p-1 px-1.5 bg-gray-200 text-gray-600 rounded-lg"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            {u.membership?.badge && (
+                              <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter border border-orange-200 badge-shine">
+                                {u.membership.badge}
+                              </span>
+                            )}
                             <button 
                               onClick={() => {
-                                setEditingUserBadge(null);
-                                setIsCustomBadge(false);
+                                setEditingUserBadge(u.uid);
+                                setNewBadge(u.membership?.badge || '');
+                                setIsCustomBadge(true);
                               }}
-                              className="flex-1 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center justify-center"
+                              className="p-2 text-gray-400 hover:text-orange-500 bg-gray-50 rounded-xl transition-all"
+                              title="Edit Badge"
                             >
-                              <X className="w-4 h-4" />
+                              <Edit2 className="w-4 h-4" />
                             </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          {u.membership?.badge ? (
-                            <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter border border-orange-200 badge-shine">
-                              {u.membership.badge}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300 text-[10px] font-bold uppercase tracking-widest">None</span>
-                          )}
-                          <button 
-                            onClick={() => {
-                              setEditingUserBadge(u.uid);
-                              setNewBadge(u.membership?.badge || '');
-                            }}
-                            className="p-1 text-gray-400 hover:text-orange-600 transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-8 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Login</p>
-                        <p className="text-xs font-medium text-gray-600">
-                          {u.lastLoginAt?.toDate ? format(u.lastLoginAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
-                        </p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Last Active</p>
-                        <p className="text-xs font-medium text-gray-600">
-                          {u.lastActiveAt?.toDate ? format(u.lastActiveAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4">
-                      <p className="text-xs font-medium text-gray-600">
-                        {u.createdAt?.toDate ? format(u.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
-                      </p>
-                    </td>
-                    <td className="px-8 py-4">
-                      {editingUserCoins === u.uid ? (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            value={coinAdjustment}
-                            onChange={(e) => setCoinAdjustment(e.target.value)}
-                            className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                            placeholder="New Balance"
-                          />
-                          <button 
-                            onClick={() => handleUpdateUserCoins(u.uid)}
-                            className="p-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingUserCoins(null);
-                              setCoinAdjustment('0');
-                            }}
-                            className="p-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1">
-                            <Coins className="w-3 h-3 text-orange-500" />
-                            <span className="text-sm font-bold text-gray-900">{u.coins.toLocaleString()}</span>
                             <button 
                               onClick={() => {
                                 setEditingUserCoins(u.uid);
                                 setCoinAdjustment(u.coins.toString());
                               }}
-                              className="p-1 text-gray-400 hover:text-orange-600 transition-colors ml-1"
+                              className="p-2 text-gray-400 hover:text-green-600 bg-gray-50 rounded-xl transition-all"
+                              title="Set Coins"
                             >
-                              <Edit2 className="w-3 h-3" />
+                              <Coins className="w-4 h-4" />
                             </button>
+                            {u.role !== 'admin' && (
+                              <button 
+                                onClick={() => setUserToDelete(u.uid)}
+                                className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 rounded-xl transition-all"
+                                title="Delete User"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <p className="text-[10px] text-gray-400 font-medium">Total: {u.totalEarned.toLocaleString()}</p>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-8 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => {
-                            setEditingUserCoins(u.uid);
-                            setCoinAdjustment(u.coins.toString());
-                          }}
-                          className="text-xs font-bold text-orange-600 hover:text-orange-700"
-                        >
-                          Edit Balance
-                        </button>
-                        {u.role !== 'admin' && (
-                          <button 
-                            onClick={() => setUserToDelete(u.uid)}
-                            className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                            title="Delete User"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         )}
                       </div>
                     </td>
@@ -4306,14 +4322,14 @@ const Auth = () => {
         }
         
         const { user: newUser } = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-        const isAdmin = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
+        const isAdminAccount = cleanEmail === 'pishawrichappalhouse@gmail.com' || cleanEmail === 'aiwithqammar@gmail.com';
         await setDoc(doc(db, 'users', newUser.uid), {
           uid: newUser.uid,
           email: newUser.email,
           displayName: name.trim() || cleanEmail.split('@')[0],
           coins: 0,
           totalEarned: 0,
-          role: isAdmin ? 'admin' : 'user',
+          role: isAdminAccount ? 'admin' : 'user',
           referredBy: referredBy || null,
           referralCount: 0,
           referralEarnings: 0,
@@ -4326,6 +4342,25 @@ const Auth = () => {
           lastActiveAt: serverTimestamp(),
           isOnline: true
         });
+
+        // Increment referral count for referrer
+        if (referredBy) {
+          const referrerRef = doc(db, 'users', referredBy);
+          await updateDoc(referrerRef, {
+            referralCount: increment(1)
+          }).catch(err => console.error("Referral count update failed:", err));
+          
+          // Send notification to referrer about successful referral signup
+          await addDoc(collection(db, 'notifications'), {
+            userId: referredBy,
+            title: 'New Referral!',
+            message: `${name.trim() || cleanEmail.split('@')[0]} joined using your link. You'll earn coins if they buy a plan!`,
+            type: 'post_approved',
+            read: false,
+            createdAt: serverTimestamp()
+          }).catch(err => console.error("Referral notification failed:", err));
+        }
+
         localStorage.removeItem('referredBy');
       } else {
         const { user: logUser } = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
@@ -4446,6 +4481,23 @@ const Auth = () => {
           lastActiveAt: serverTimestamp(),
           isOnline: true
         });
+
+        if (referredBy) {
+          const referrerRef = doc(db, 'users', referredBy);
+          await updateDoc(referrerRef, {
+            referralCount: increment(1)
+          }).catch(err => console.error("Referral count update failed:", err));
+          
+          await addDoc(collection(db, 'notifications'), {
+            userId: referredBy,
+            title: 'New Referral (Google)!',
+            message: `${user.displayName || user.email?.split('@')[0]} joined using your link. You'll earn coins if they buy a plan!`,
+            type: 'post_approved',
+            read: false,
+            createdAt: serverTimestamp()
+          }).catch(err => console.error("Referral notification failed:", err));
+        }
+
         localStorage.removeItem('referredBy');
       } else {
         await updateDoc(docRef, { 
