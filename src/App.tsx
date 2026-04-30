@@ -1523,7 +1523,7 @@ const Home = () => {
                   <span className="px-4 py-1.5 bg-orange-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
                     {featuredPosts[0].category}
                   </span>
-                  <h3 className="text-3xl md:text-5xl font-black text-white leading-tight max-w-2xl">
+                  <h3 className="text-2xl md:text-5xl font-black text-white leading-tight max-w-2xl line-clamp-3 md:line-clamp-none">
                     {featuredPosts[0].title}
                   </h3>
                   <div className="flex items-center gap-4 text-gray-300 text-sm font-medium">
@@ -4906,12 +4906,14 @@ export default function App() {
           <NotificationListener />
           <AdSocialBar />
           <AdPopunder />
-          <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
+          <div className="min-h-screen bg-[#F8F9FA] font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900 overflow-x-hidden">
             <Toaster position="top-center" richColors />
             <Navbar />
-            <AdBanner position="top" />
+            <div className="w-full max-w-7xl mx-auto">
+              <AdBanner position="top" />
+            </div>
             <MembershipNotice />
-            <main>
+            <main className="w-full">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/membership" element={<Membership />} />

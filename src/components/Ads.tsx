@@ -80,8 +80,8 @@ export const AdBanner468x60: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-4 flex justify-center overflow-hidden">
-      <div ref={containerRef}></div>
+    <div className="my-4 flex justify-center overflow-hidden px-2">
+      <div ref={containerRef} className="max-w-full overflow-hidden"></div>
     </div>
   );
 };
@@ -114,8 +114,8 @@ export const AdBanner728x90: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-4 flex justify-center overflow-hidden">
-      <div ref={containerRef}></div>
+    <div className="my-4 flex justify-center overflow-hidden px-2">
+      <div ref={containerRef} className="max-w-full overflow-hidden"></div>
     </div>
   );
 };
