@@ -83,10 +83,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.email.lower() == "pishawrichappalhouse@gmail.com" ||
-         request.auth.token.email.lower() == "aiwithqammar@gmail.com" ||
+        (request.auth.token.email.toLower() == "pishawrichappalhouse@gmail.com" ||
+         request.auth.token.email.toLower() == "aiwithqammar@gmail.com" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isSystemPost(postId) {
+      return postId in ['1', '2', '3'];
     }
 
     function isValidUser(data) {
@@ -129,12 +133,13 @@ service cloud.firestore {
              data.trxId is string && data.trxId.size() >= 5 &&
              data.screenshotUrl is string &&
              data.status == 'pending' &&
-             (data.createdAt is timestamp || data.createdAt == request.time);
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('id' in data) || (data.id is string && data.id.size() > 0));
     }
 
     function isValidPost(data) {
       let requiredFields = ['title', 'content', 'authorId', 'authorName', 'category', 'views', 'status', 'createdAt'];
-      let optionalFields = ['thumbnail', 'authorBadge', 'authorRole', 'likes', 'likedBy'];
+      let optionalFields = ['id', 'thumbnail', 'authorBadge', 'authorRole', 'likes', 'likedBy'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.title is string && data.title.size() >= 5 && data.title.size() <= 200 &&
@@ -145,6 +150,7 @@ service cloud.firestore {
              data.views is number && data.views >= 0 &&
              data.status in ['pending', 'approved', 'rejected'] &&
              (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('id' in data) || (data.id is string && data.id.size() > 0)) &&
              (!('thumbnail' in data) || (data.thumbnail is string)) &&
              (!('authorBadge' in data) || (data.authorBadge is string || data.authorBadge == null)) &&
              (!('authorRole' in data) || (data.authorRole is string)) &&
@@ -153,19 +159,23 @@ service cloud.firestore {
     }
 
     function isValidWithdrawal(data) {
-      return data.keys().hasAll(['userId', 'userName', 'amount', 'method', 'details', 'status', 'createdAt']) &&
+      let requiredFields = ['userId', 'userName', 'amount', 'method', 'details', 'status', 'createdAt'];
+      let optionalFields = ['id'];
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.userName is string && data.userName.size() > 0 &&
              data.amount is number && data.amount >= 1000 &&
              data.method in ['JazzCash', 'EasyPaisa', 'Bank'] &&
              data.details is string && data.details.size() > 0 &&
              data.status in ['pending', 'approved', 'cancelled'] &&
-             (data.createdAt is timestamp || data.createdAt == request.time);
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('id' in data) || (data.id is string && data.id.size() > 0));
     }
 
     function isValidComment(data) {
       let requiredFields = ['postId', 'userId', 'userName', 'content', 'createdAt'];
-      let optionalFields = ['userPhoto', 'userBadge', 'userRole'];
+      let optionalFields = ['id', 'userPhoto', 'userBadge', 'userRole'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.postId is string && data.postId.size() > 0 &&
@@ -173,13 +183,15 @@ service cloud.firestore {
              data.userName is string && data.userName.size() > 0 &&
              data.content is string && data.content.size() >= 1 && data.content.size() <= 1000 &&
              (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('id' in data) || (data.id is string && data.id.size() > 0)) &&
              (!('userPhoto' in data) || (data.userPhoto is string)) &&
              (!('userBadge' in data) || (data.userBadge is string || data.userBadge == null)) &&
              (!('userRole' in data) || (data.userRole is string));
     }
 
     function isValidNotification(data) {
-      return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+      let requiredFields = ['userId', 'title', 'message', 'type', 'read', 'createdAt'];
+      return data.keys().hasAll(requiredFields) &&
              data.userId is string && data.userId.size() > 0 &&
              data.title is string && data.title.size() > 0 &&
              data.message is string && data.message.size() > 0 &&
@@ -193,7 +205,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow delete: if isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && (request.auth.token.email == "pishawrichappalhouse@gmail.com" || request.auth.token.email == "aiwithqammar@gmail.com")));
+                    (request.resource.data.role == 'user' || (request.resource.data.role == 'admin' && (request.auth.token.email.toLower() == "pishawrichappalhouse@gmail.com" || request.auth.token.email.toLower() == "aiwithqammar@gmail.com")));
       allow update: if (isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && 
@@ -218,13 +230,16 @@ service cloud.firestore {
     // Rules for Posts Collection
     match /posts/{postId} {
       allow read: if true; // Publicly readable
-      allow create: if isAuthenticated() && isValidPost(request.resource.data) && 
-                    (request.resource.data.status == 'pending' || (request.resource.data.status == 'approved' && isAdmin()));
+      allow create: if isAuthenticated() && (
+        isValidPost(request.resource.data) ||
+        (isSystemPost(postId) && isAdmin())
+      ) && 
+      (request.resource.data.status == 'pending' || (request.resource.data.status == 'approved' && isAdmin()));
       allow update: if (isAuthenticated() && (
+        isAdmin() ||
         (isOwner(resource.data.authorId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'category', 'thumbnail']) &&
          isValidPost(request.resource.data)) ||
-        isAdmin() ||
         (
           // Allow liking/unliking
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
@@ -285,7 +300,7 @@ service cloud.firestore {
     // Rules for Notifications Collection
     match /notifications/{notificationId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isAdmin();
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == request.resource.data.userId);
       allow update: if isOwner(resource.data.userId) && 
                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
       allow delete: if isOwner(resource.data.userId) || isAdmin();

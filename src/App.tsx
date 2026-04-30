@@ -92,7 +92,7 @@ import {
 import { auth, db, googleProvider } from './firebase';
 import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
 import { cn } from './lib/utils';
-import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink } from './components/Ads';
+import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink, WelcomeAd } from './components/Ads';
 
 // --- Types ---
 
@@ -4771,8 +4771,8 @@ Whether you are writing a technical guide, a personal memoir, or producing an ex
             category: "Technology",
             thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=2000",
             authorId: user.uid,
-            authorName: user.displayName,
-            authorRole: user.role,
+            authorName: user.displayName || user.email?.split('@')[0] || 'Member',
+            authorRole: user.role || 'user',
             status: 'approved',
             views: 450,
             likes: 89,
@@ -4902,6 +4902,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <AdEligibilityProvider>
+          <WelcomeAd />
           <NotificationListener />
           <AdSocialBar />
           <AdPopunder />
