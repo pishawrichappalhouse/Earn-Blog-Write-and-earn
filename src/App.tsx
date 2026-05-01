@@ -3279,26 +3279,43 @@ const BPAPanel = () => {
 
   const handleUpdateUserBadge = async (uid: string) => {
     try {
-      const userRef = doc(db, 'users', uid);
-      const updateData: any = {
-        'membership.badge': newBadge || null
-      };
-      
-      // If setting a standard plan badge, also update status and plan
-      if (newBadge === 'Pro' || newBadge === 'Super Pro' || newBadge === 'Legend Pro') {
-        updateData['membership.status'] = 'approved';
-        updateData['membership.plan'] = newBadge;
-      } else if (!newBadge) {
-        updateData['membership.status'] = 'none';
-        updateData['membership.plan'] = null;
-      }
+      const selection = newBadge.trim();
+      if (!selection) return;
 
-      await updateDoc(userRef, updateData);
-      toast.success('User badge updated!');
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) return;
+      
+      const userData = userDoc.data();
+      // Ensure plan name is formatted consistently
+      const planName = selection.charAt(0).toUpperCase() + selection.slice(1);
+      
+      // Update User Profile with Badge and Membership Status
+      await updateDoc(userRef, {
+        badge: planName,
+        'membership.status': 'approved',
+        'membership.plan': planName,
+        'membership.badge': planName,
+        'membership.activatedAt': serverTimestamp(),
+        'membership.expiresAt': null 
+      });
+
+      // Add notification for the user
+      await addDoc(collection(db, 'notifications'), {
+        userId: uid,
+        title: 'Plan Activated!',
+        message: `Admin has activated your ${planName} Plan. Enjoy the exclusive benefits!`,
+        type: 'post_approved',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.success(`${planName} activated for ${userData.displayName || 'user'}!`);
       setEditingUserBadge(null);
+      setNewBadge('');
       setIsCustomBadge(false);
     } catch (error) {
-      toast.error('Failed to update badge');
+      toast.error("Failed to activate plan");
       console.error(error);
     }
   };
@@ -4178,17 +4195,62 @@ const BPAPanel = () => {
                     <td className="px-8 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {editingUserBadge === u.uid ? (
-                          <div className="flex items-center gap-1.5">
-                            <input 
-                              type="text" 
-                              value={newBadge}
-                              onChange={(e) => setNewBadge(e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                              placeholder="Badge..."
-                              autoFocus
-                            />
-                            <button onClick={() => handleUpdateUserBadge(u.uid)} className="p-1 px-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
-                            <button onClick={() => setEditingUserBadge(null)} className="p-1 px-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors"><X className="w-4 h-4" /></button>
+                          <div className="flex flex-col gap-2 min-w-[140px] bg-blue-50/50 p-2 rounded-xl border border-blue-100">
+                            <label className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">Select Plan</label>
+                            {!isCustomBadge ? (
+                              <select 
+                                value={newBadge}
+                                onChange={(e) => {
+                                  if (e.target.value === 'custom') {
+                                    setIsCustomBadge(true);
+                                    setNewBadge('');
+                                  } else {
+                                    setNewBadge(e.target.value);
+                                  }
+                                }}
+                                className="w-full px-2 py-1.5 text-[10px] font-bold border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white"
+                                autoFocus
+                              >
+                                <option value="">Choose...</option>
+                                <option value="Pro">Pro</option>
+                                <option value="Super Pro">Super Pro</option>
+                                <option value="Legend Pro">Legend Pro</option>
+                                <option value="custom">+ Custom</option>
+                              </select>
+                            ) : (
+                              <div className="relative">
+                                <input 
+                                  type="text" 
+                                  value={newBadge}
+                                  onChange={(e) => setNewBadge(e.target.value)}
+                                  placeholder="Type badge name..."
+                                  className="w-full px-2 py-1.5 text-[10px] border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 pr-6"
+                                  autoFocus
+                                />
+                                <button onClick={() => { setIsCustomBadge(false); setNewBadge(''); }} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                            <div className="flex gap-1">
+                              <button 
+                                onClick={() => handleUpdateUserBadge(u.uid)}
+                                disabled={!newBadge}
+                                className={`flex-1 p-1 rounded-lg text-white transition-all ${!newBadge ? 'bg-gray-300' : 'bg-blue-500 hover:bg-blue-600 shadow-sm active:scale-95'}`}
+                              >
+                                <Check className="w-3 h-3 mx-auto" />
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setEditingUserBadge(null);
+                                  setNewBadge('');
+                                  setIsCustomBadge(false);
+                                }}
+                                className="flex-1 p-1 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                              >
+                                <X className="w-3 h-3 mx-auto" />
+                              </button>
+                            </div>
                           </div>
                         ) : editingUserCoins === u.uid ? (
                           <div className="flex items-center gap-1.5">
@@ -4211,13 +4273,16 @@ const BPAPanel = () => {
                             <button 
                               onClick={() => {
                                 setEditingUserBadge(u.uid);
-                                setNewBadge(u.membership?.badge || '');
-                                setIsCustomBadge(true);
+                                const currentBadge = u.membership?.badge || '';
+                                setNewBadge(currentBadge);
+                                // Default to dropdown if it's a standard plan or empty
+                                const isStandard = ['Pro', 'Super Pro', 'Legend Pro'].includes(currentBadge);
+                                setIsCustomBadge(!isStandard && currentBadge !== '');
                               }}
                               className="p-2 text-gray-400 hover:text-orange-500 bg-gray-50 rounded-xl transition-all"
-                              title="Edit Badge"
+                              title="Edit Badge / Plan"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Shield className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => {
