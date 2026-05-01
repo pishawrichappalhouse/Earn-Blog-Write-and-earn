@@ -49,6 +49,8 @@ import {
   ChevronDown,
   Coins,
   Copy,
+  UserPlus,
+  Crown,
   Check as CheckIcon,
   MessageCircle,
   Facebook,
@@ -324,6 +326,9 @@ const ReferralSection = () => {
             <div>
               <h3 className="text-xl font-black tracking-tight">Refer & Earn</h3>
               <p className="text-orange-100 text-xs font-medium">Invite friends and get {settings.referralBonus || 100} Coins!</p>
+              <p className="text-[9px] font-bold text-white/70 uppercase tracking-tighter mt-1 animate-pulse">
+                * Active plan required to receive earnings
+              </p>
             </div>
           </div>
 
@@ -3171,21 +3176,36 @@ const BPAPanel = () => {
             const referrerRef = doc(db, 'users', userData.referredBy);
             const referrerSnap = await getDoc(referrerRef);
             if (referrerSnap.exists()) {
-              await updateDoc(referrerRef, {
-                coins: increment(settings.referralBonus || 100),
-                totalEarned: increment(settings.referralBonus || 100),
-                referralEarnings: increment(settings.referralBonus || 100)
-              });
+              const referrerData = referrerSnap.data();
               
-              // Notify Referrer
-              await addDoc(collection(db, 'notifications'), {
-                userId: userData.referredBy,
-                title: 'Referral Bonus!',
-                message: `You earned ${settings.referralBonus || 100} coins because ${userData.displayName} activated a membership.`,
-                type: 'post_approved',
-                read: false,
-                createdAt: serverTimestamp()
-              });
+              // Only Award Bonus if Referrer has an Active Approved Plan
+              if (referrerData.membership?.status === 'approved') {
+                await updateDoc(referrerRef, {
+                  coins: increment(settings.referralBonus || 100),
+                  totalEarned: increment(settings.referralBonus || 100),
+                  referralEarnings: increment(settings.referralBonus || 100)
+                });
+                
+                // Notify Referrer
+                await addDoc(collection(db, 'notifications'), {
+                  userId: userData.referredBy,
+                  title: 'Referral Bonus!',
+                  message: `You earned ${settings.referralBonus || 100} coins because ${userData.displayName} activated a membership.`,
+                  type: 'post_approved',
+                  read: false,
+                  createdAt: serverTimestamp()
+                });
+              } else {
+                // Notify Referrer they missed out
+                await addDoc(collection(db, 'notifications'), {
+                  userId: userData.referredBy,
+                  title: 'Bonus Missed!',
+                  message: `${userData.displayName} activated a membership, but you missed the bonus because you don't have an active plan!`,
+                  type: 'warning',
+                  read: false,
+                  createdAt: serverTimestamp()
+                });
+              }
             }
           }
         }
@@ -3226,9 +3246,36 @@ const BPAPanel = () => {
 
   const [editingUserCoins, setEditingUserCoins] = useState<string | null>(null);
   const [editingUserBadge, setEditingUserBadge] = useState<string | null>(null);
+  const [editingUserReferral, setEditingUserReferral] = useState<string | null>(null);
+  const [referralCountAdjustment, setReferralCountAdjustment] = useState<string>('0');
+  const [referralMode, setReferralMode] = useState<'add' | 'remove'>('add');
   const [coinAdjustment, setCoinAdjustment] = useState<string>('0');
   const [newBadge, setNewBadge] = useState<string>('');
   const [isCustomBadge, setIsCustomBadge] = useState(false);
+
+  const handleAdjustReferralCount = async (uid: string) => {
+    try {
+      const amount = parseInt(referralCountAdjustment);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error("Please enter a valid number (e.g., 08)");
+        return;
+      }
+
+      const userRef = doc(db, 'users', uid);
+      const finalAdjustment = referralMode === 'add' ? amount : -amount;
+
+      await updateDoc(userRef, {
+        referralCount: increment(finalAdjustment)
+      });
+
+      toast.success(`${referralMode === 'add' ? 'Added' : 'Removed'} ${amount} referrals!`);
+      setEditingUserReferral(null);
+      setReferralCountAdjustment('0');
+    } catch (error) {
+      toast.error("Failed to adjust referral count");
+      console.error(error);
+    }
+  };
 
   const handleUpdateUserBadge = async (uid: string) => {
     try {
@@ -3997,8 +4044,21 @@ const BPAPanel = () => {
                           )} />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{u.displayName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-gray-900">{u.displayName}</p>
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(u.uid);
+                                toast.success("UID Copied!");
+                              }}
+                              className="p-1 text-gray-400 hover:text-orange-500 transition-colors"
+                              title="Copy UID"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
                           <p className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{u.email}</p>
+                          <p className="text-[9px] font-mono text-gray-300 select-all">ID: {u.uid}</p>
                         </div>
                       </div>
                     </td>
@@ -4027,15 +4087,70 @@ const BPAPanel = () => {
                       </div>
                     </td>
                     <td className="px-8 py-4">
-                      {u.referredBy ? (
-                        <div className="flex flex-col max-w-[120px]">
-                          <span className="text-xs font-bold text-gray-900 truncate">
-                            {allUsers.find(refUser => refUser.uid === u.referredBy)?.displayName || 'User'}
-                          </span>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter truncate opacity-70">ID: {u.referredBy.slice(0, 8)}</p>
+                      {editingUserReferral === u.uid ? (
+                        <div className="flex flex-col gap-2 min-w-[140px] bg-orange-50/50 p-2 rounded-xl border border-orange-100">
+                          <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-100 mb-1">
+                            <button 
+                              onClick={() => setReferralMode('add')}
+                              className={`flex-1 text-[9px] font-black py-1 px-2 rounded-md transition-all ${referralMode === 'add' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              ADD
+                            </button>
+                            <button 
+                              onClick={() => setReferralMode('remove')}
+                              className={`flex-1 text-[9px] font-black py-1 px-2 rounded-md transition-all ${referralMode === 'remove' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              REMOVE
+                            </button>
+                          </div>
+                          
+                          <div className="flex gap-2 items-center">
+                            <input 
+                              type="number" 
+                              value={referralCountAdjustment}
+                              onChange={(e) => setReferralCountAdjustment(e.target.value)}
+                              placeholder="00"
+                              className="w-16 px-2 py-2 text-[12px] font-black border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-center shadow-sm"
+                              autoFocus
+                            />
+                            <button 
+                              onClick={() => handleAdjustReferralCount(u.uid)}
+                              className={`p-2 rounded-lg text-white shadow-md transition-transform active:scale-95 ${referralMode === 'add' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setEditingUserReferral(null);
+                                setReferralCountAdjustment('0');
+                              }}
+                              className="p-2 bg-gray-100 text-gray-400 rounded-lg hover:bg-gray-200"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <p className="text-[8px] text-gray-400 italic text-center">Type amount (e.g. 08)</p>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold opacity-40 italic">Direct</span>
+                        <div className="flex items-center justify-between group">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black text-gray-900">
+                              {u.referralCount || 0}
+                            </span>
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">SUCCESSFUL</span>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setEditingUserReferral(u.uid);
+                              setReferralCountAdjustment('0');
+                              setReferralMode('add');
+                            }}
+                            className="p-2 text-gray-400 hover:text-orange-500 opacity-0 group-hover:opacity-100 transition-all bg-gray-50 rounded-xl"
+                            title="Adjust Referrals"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </td>
                     <td className="px-8 py-4">
