@@ -51,6 +51,8 @@ export const AdPopunder: React.FC = () => {
     script.onerror = (e) => console.error('AdPopunder: Script failed to load.', e);
 
     document.body.appendChild(script);
+    console.log('AdPopunder: Script added to body.');
+    
     return () => {
       // document.body.removeChild(script);
     };
@@ -58,20 +60,43 @@ export const AdPopunder: React.FC = () => {
   return null;
 };
 
+export const GoogleAdSense: React.FC<{ slot: string; className?: string }> = ({ slot, className }) => {
+  useEffect(() => {
+    try {
+      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    } catch (e) {
+      console.error('AdSense Error:', e);
+    }
+  }, []);
+
+  return (
+    <div className={`flex justify-center my-6 overflow-hidden ${className}`}>
+      <ins
+        className="adsbygoogle"
+        style={{ display: 'block', minWidth: '250px', minHeight: '90px' }}
+        data-ad-client="ca-pub-7554219557678246"
+        data-ad-slot={slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </div>
+  );
+};
+
 export const AdNativeBanner: React.FC = () => {
   return (
-    <div className="my-4 flex flex-col items-center justify-center w-full overflow-hidden">
+    <div className="my-4 flex flex-col items-center justify-center w-full overflow-hidden bg-gray-50/50 rounded-xl">
       <iframe
         title="Native Ad"
-        style={{ width: '100%', height: '300px', border: 'none', overflow: 'hidden' }}
+        style={{ width: '100%', height: '320px', border: 'none', overflow: 'hidden' }}
         srcDoc={`
           <!DOCTYPE html>
           <html>
             <head>
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <style>
-                body { margin: 0; padding: 0; display: flex; justify-content: center; }
-                #container-18b5e3576860dadf9e5703e77ea1bf8f { width: 100%; }
+                body { margin: 0; padding: 0; display: flex; justify-content: center; background: transparent; font-family: sans-serif; }
+                #container-18b5e3576860dadf9e5703e77ea1bf8f { width: 100%; min-height: 250px; }
                 #container-18b5e3576860dadf9e5703e77ea1bf8f > div { margin: 0 auto !important; }
               </style>
             </head>
@@ -95,7 +120,7 @@ export const AdNativeBanner: React.FC = () => {
 
 export const AdBanner468x60: React.FC = () => {
   return (
-    <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
+    <div className="my-4 flex justify-center overflow-hidden px-2 w-full bg-gray-50/30 py-2 rounded-lg">
       <iframe
         title="Banner 468x60"
         style={{ width: '468px', height: '60px', border: 'none', overflow: 'hidden' }}
@@ -103,7 +128,10 @@ export const AdBanner468x60: React.FC = () => {
         srcDoc={`
           <!DOCTYPE html>
           <html>
-            <body style="margin:0; padding:0;">
+            <head>
+              <style>body { margin:0; padding:0; display: flex; justify-content: center; background: transparent; }</style>
+            </head>
+            <body>
               <script type="text/javascript">
                 atOptions = {
                   'key' : 'c204efdcd9fc62cf37e2eae828137f0f',
@@ -124,7 +152,7 @@ export const AdBanner468x60: React.FC = () => {
 
 export const AdBanner728x90: React.FC = () => {
   return (
-    <div className="my-4 flex justify-center overflow-hidden px-2 w-full">
+    <div className="my-4 flex justify-center overflow-hidden px-2 w-full bg-gray-50/30 py-2 rounded-lg">
       <iframe
         title="Banner 728x90"
         style={{ width: '728px', height: '90px', border: 'none', overflow: 'hidden' }}
@@ -132,7 +160,10 @@ export const AdBanner728x90: React.FC = () => {
         srcDoc={`
           <!DOCTYPE html>
           <html>
-            <body style="margin:0; padding:0;">
+            <head>
+              <style>body { margin:0; padding:0; display: flex; justify-content: center; background: transparent; }</style>
+            </head>
+            <body>
               <script type="text/javascript">
                 atOptions = {
                   'key' : 'b714ff8dd9804eadbbf14d4ced6ac8c1',

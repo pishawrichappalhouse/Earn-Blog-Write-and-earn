@@ -94,7 +94,7 @@ import {
 import { auth, db, googleProvider } from './firebase';
 import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
 import { cn } from './lib/utils';
-import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink, WelcomeAd } from './components/Ads';
+import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink, WelcomeAd, GoogleAdSense } from './components/Ads';
 
 // --- Types ---
 
