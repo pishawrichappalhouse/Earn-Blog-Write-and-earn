@@ -269,8 +269,116 @@ export const SMARTLINK_URL = 'https://valuationappeared.com/uiznc96u0i?key=d2c89
 
 export const AdSmartLink: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => {
   return (
-    <a href={SMARTLINK_URL} target="_blank" rel="noopener noreferrer" className={className}>
+    <a 
+      href={SMARTLINK_URL} 
+      target="_blank" 
+      rel="noopener noreferrer" 
+      className={className}
+      onClick={() => {
+        // Log click for analytics if needed
+        console.log('SmartLink Clicked - CPM Boost Triggered');
+      }}
+    >
       {children}
     </a>
+  );
+};
+
+export const AntiAdblock: React.FC = () => {
+  const [isBlocked, setIsBlocked] = React.useState(false);
+
+  useEffect(() => {
+    // Attempt to fetch a common ad script URL to see if it's blocked
+    fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', { mode: 'no-cors' })
+      .then(() => setIsBlocked(false))
+      .catch(() => setIsBlocked(true));
+  }, []);
+
+  if (!isBlocked) return null;
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-[9999] bg-red-600/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-500 border border-red-400">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-white/20 rounded-lg">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold text-sm">Ad-Blocker Detected!</p>
+            <p className="text-[10px] text-red-100 opacity-90">Please disable Ad-Blocker to continue earning coins and support our community.</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-white text-red-600 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-red-50 transition-colors"
+        >
+          I've Disabled It
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export const HighCPMBooster: React.FC<{ coins: number; onComplete: () => void }> = ({ coins, onComplete }) => {
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const handleBoost = () => {
+    setIsProcessing(true);
+    // Open Smartlink
+    window.open(SMARTLINK_URL, '_blank');
+    
+    // Simulate high-CPM processing time
+    setTimeout(() => {
+      setIsProcessing(false);
+      onComplete();
+    }, 2500);
+  };
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl text-white shadow-xl overflow-hidden relative group">
+      <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500" />
+      
+      <div className="relative z-10">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-white/20 rounded-xl">
+            <svg className="w-5 h-5 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-100 italic">High-CPM Active</span>
+        </div>
+
+        <h3 className="text-xl font-black mb-2 leading-tight">Super Bonus Reward</h3>
+        <p className="text-xs text-purple-100 font-medium mb-6 opacity-80">
+          Use the High-Speed Sponsored gateway to claim <span className="text-yellow-300 font-bold">{coins} coins</span> instantly.
+        </p>
+
+        <button
+          onClick={handleBoost}
+          disabled={isProcessing}
+          className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3 ${
+            isProcessing
+              ? 'bg-white/20 text-white cursor-wait'
+              : 'bg-white text-indigo-600 hover:bg-yellow-300 hover:text-indigo-900 shadow-lg'
+          }`}
+        >
+          {isProcessing ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Processing Boost...
+            </>
+          ) : (
+            <>
+              Claim {coins} Coins Now
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };

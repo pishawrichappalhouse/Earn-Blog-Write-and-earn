@@ -94,7 +94,7 @@ import {
 import { auth, db, googleProvider } from './firebase';
 import { notifyAdminNewWithdrawal, notifyUserWithdrawalStatus, notifyAdminWithdrawalProcessed, notifyUserPostStatus } from './services/emailService';
 import { cn } from './lib/utils';
-import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink, WelcomeAd, GoogleAdSense } from './components/Ads';
+import { AdSocialBar, AdPopunder, AdNativeBanner, AdBanner468x60, AdBanner728x90, AdSmartLink, WelcomeAd, GoogleAdSense, HighCPMBooster, AntiAdblock } from './components/Ads';
 
 // --- Types ---
 
@@ -2445,6 +2445,7 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <AntiAdblock />
       <AdBanner position="top" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-12 flex flex-col md:flex-row items-center gap-6 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm mb-8">
@@ -2532,21 +2533,8 @@ const Dashboard = () => {
             <p className="text-3xl font-bold">{userPosts.length}</p>
           </div>
           
-          <div onClick={handleBonusClick}>
-            <AdSmartLink className="block group">
-              <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-3xl text-white shadow-lg shadow-blue-200 h-full transform transition-transform group-hover:scale-[1.02]">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-white/20 rounded-xl"><DollarSign className="w-5 h-5" /></div>
-                  <span className="text-xs font-bold uppercase tracking-widest">Bonus Revenue</span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-2xl font-black">Boost Earnings</p>
-                  <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest flex items-center gap-1">
-                    Click to earn extra coins <ExternalLink className="w-3 h-3" />
-                  </p>
-                </div>
-              </div>
-            </AdSmartLink>
+          <div className="lg:col-span-2">
+            <HighCPMBooster coins={20} onComplete={handleBonusClick} />
           </div>
         </div>
 
@@ -5220,6 +5208,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <AdEligibilityProvider>
+          <AntiAdblock />
           <WelcomeAd />
           <NotificationListener />
           <AdSocialBar />
