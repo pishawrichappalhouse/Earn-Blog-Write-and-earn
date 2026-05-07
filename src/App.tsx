@@ -2327,6 +2327,23 @@ const Dashboard = () => {
     iban: ''
   });
 
+  const handleBonusClick = async () => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        coins: increment(10),
+        totalEarned: increment(10)
+      });
+      toast.success('Bonus Revenue Active!', {
+        description: 'You earned 10 coins.',
+        icon: <Coins className="w-4 h-4 text-orange-500" />
+      });
+    } catch (error) {
+      console.error('Error granting bonus:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       const postsQ = query(collection(db, 'posts'), where('authorId', '==', user.uid), orderBy('createdAt', 'desc'));
@@ -2515,20 +2532,22 @@ const Dashboard = () => {
             <p className="text-3xl font-bold">{userPosts.length}</p>
           </div>
           
-          <AdSmartLink className="block group">
-            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-3xl text-white shadow-lg shadow-blue-200 h-full transform transition-transform group-hover:scale-[1.02]">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-white/20 rounded-xl"><DollarSign className="w-5 h-5" /></div>
-                <span className="text-xs font-bold uppercase tracking-widest">Bonus Revenue</span>
+          <div onClick={handleBonusClick}>
+            <AdSmartLink className="block group">
+              <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-3xl text-white shadow-lg shadow-blue-200 h-full transform transition-transform group-hover:scale-[1.02]">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-white/20 rounded-xl"><DollarSign className="w-5 h-5" /></div>
+                  <span className="text-xs font-bold uppercase tracking-widest">Bonus Revenue</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-black">Boost Earnings</p>
+                  <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest flex items-center gap-1">
+                    Click to earn extra coins <ExternalLink className="w-3 h-3" />
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-2xl font-black">Boost Earnings</p>
-                <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest flex items-center gap-1">
-                  Click to earn extra coins <ExternalLink className="w-3 h-3" />
-                </p>
-              </div>
-            </div>
-          </AdSmartLink>
+            </AdSmartLink>
+          </div>
         </div>
 
         <div className="lg:col-span-8 space-y-8">
