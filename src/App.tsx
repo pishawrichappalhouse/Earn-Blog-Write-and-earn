@@ -54,7 +54,8 @@ import {
   Check as CheckIcon,
   MessageCircle,
   Facebook,
-  Twitter
+  Twitter,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -859,6 +860,8 @@ const Deposit = () => {
     'Legend Pro': 1500
   };
 
+  const [isCompressing, setIsCompressing] = useState(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -866,9 +869,48 @@ const Deposit = () => {
         toast.error('Please upload an image file');
         return;
       }
+
+      if (file.size > 10 * 1024 * 1024) { 
+        toast.error('File is too large. Please select an image under 10MB.');
+        return;
+      }
+
+      setIsCompressing(true);
       setScreenshot(file);
       const reader = new FileReader();
-      reader.onloadend = () => setScreenshotPreview(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = (height / width) * maxDim;
+              width = maxDim;
+            } else {
+              width = (width / height) * maxDim;
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          setScreenshotPreview(compressedDataUrl);
+          setIsCompressing(false);
+        };
+        img.onerror = () => {
+          toast.error('Failed to process image');
+          setIsCompressing(false);
+        };
+        img.src = event.target?.result as string;
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -887,11 +929,11 @@ const Deposit = () => {
       const depositData: Deposit = {
         id: depositId,
         userId: user.uid,
-        userName: user.displayName,
+        userName: user.displayName || user.email?.split('@')[0] || 'User',
         planName: plan as any,
         amount: plans[plan as keyof typeof plans],
         trxId,
-        screenshotUrl: screenshotPreview, // In a real app, upload to storage first
+        screenshotUrl: screenshotPreview,
         status: 'pending',
         createdAt: serverTimestamp()
       };
@@ -994,7 +1036,12 @@ const Deposit = () => {
                   screenshotPreview ? "border-orange-500 bg-orange-50/30" : "border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300"
                 )}
               >
-                {screenshotPreview ? (
+                {isCompressing ? (
+                  <div className="flex flex-col items-center py-10">
+                    <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-4" />
+                    <span className="text-sm font-bold text-orange-500 uppercase tracking-widest">Compressing Image...</span>
+                  </div>
+                ) : screenshotPreview ? (
                   <img src={screenshotPreview} alt="Preview" className="w-full h-full object-contain max-h-[300px]" />
                 ) : (
                   <div className="flex flex-col items-center py-10">
