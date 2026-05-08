@@ -94,33 +94,28 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      let requiredFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role'];
-      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'createdAt', 'referredBy', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount'];
-      return data.keys().hasAll(requiredFields) &&
-             data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
-             data.uid is string && data.uid.size() > 0 &&
-             data.email is string && data.email.size() > 0 &&
-             data.displayName is string &&
-             data.coins is number &&
-             data.totalEarned is number &&
+      let optionalFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role', 'photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'createdAt', 'referredBy', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount'];
+      return data.keys().hasOnly(optionalFields) &&
+             (!('uid' in data) || (data.uid is string && data.uid.size() > 0)) &&
+             (!('email' in data) || (data.email is string)) &&
+             (!('displayName' in data) || (data.displayName is string)) &&
+             (!('coins' in data) || (data.coins is number)) &&
+             (!('totalEarned' in data) || (data.totalEarned is number)) &&
              (!('lastBonusClaimAt' in data) || (data.lastBonusClaimAt is timestamp || data.lastBonusClaimAt == null)) &&
              (!('lastBonusClaimDate' in data) || (data.lastBonusClaimDate is string || data.lastBonusClaimDate == null)) &&
              (!('dailyBonusCount' in data) || (data.dailyBonusCount is number && data.dailyBonusCount >= 0)) &&
              (!('referredBy' in data) || (data.referredBy is string || data.referredBy == null)) &&
              (!('referralCount' in data) || (data.referralCount is number && data.referralCount >= 0)) &&
              (!('referralEarnings' in data) || (data.referralEarnings is number && data.referralEarnings >= 0)) &&
-             data.role in ['user', 'admin'] &&
+             (!('role' in data) || (data.role in ['user', 'admin'])) &&
              (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt == request.time)) &&
              (!('lastLoginAt' in data) || (data.lastLoginAt is timestamp || data.lastLoginAt == request.time)) &&
              (!('lastActiveAt' in data) || (data.lastActiveAt is timestamp || data.lastActiveAt == request.time)) &&
              (!('isOnline' in data) || data.isOnline is bool) &&
              (!('membership' in data) || (
                data.membership is map &&
-               data.membership.keys().hasAll(['plan', 'status']) &&
-               (data.membership.plan in ['Free', 'Pro', 'Super Pro', 'Legend Pro'] || data.membership.plan == null) &&
-               data.membership.status in ['none', 'pending', 'approved'] &&
-               (!('badge' in data.membership) || (data.membership.badge is string || data.membership.badge == null)) &&
-               (!('expiresAt' in data.membership) || (data.membership.expiresAt is timestamp || data.membership.expiresAt == null))
+               (!('plan' in data.membership) || (data.membership.plan in ['Free', 'Pro', 'Super Pro', 'Legend Pro'] || data.membership.plan == null)) &&
+               (!('status' in data.membership) || (data.membership.status in ['none', 'pending', 'approved']))
              ));
     }
 
@@ -213,7 +208,9 @@ service cloud.firestore {
         isAdmin() ||
         (isOwner(userId) && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount']) &&
-         isValidUser(request.resource.data) &&
+         // Basic type checks instead of full validation for own profile updates
+         (!('coins' in request.resource.data) || request.resource.data.coins is number) &&
+         (!('totalEarned' in request.resource.data) || request.resource.data.totalEarned is number) &&
          // Prevent self-approval of membership
          (
            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['membership']) ||

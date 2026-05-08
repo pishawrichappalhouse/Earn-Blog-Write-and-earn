@@ -2337,7 +2337,8 @@ const Dashboard = () => {
     const today = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format
     
     const lastClaimAt = user.lastBonusClaimAt?.toDate ? user.lastBonusClaimAt.toDate() : user.lastBonusClaimAt;
-    const dailyCount = user.lastBonusClaimDate === today ? (user.dailyBonusCount || 0) : 0;
+    const userDailyCount = typeof user.dailyBonusCount === 'number' ? user.dailyBonusCount : 0;
+    const dailyCount = user.lastBonusClaimDate === today ? userDailyCount : 0;
 
     // Check Daily Limit (10)
     if (dailyCount >= 10) {
