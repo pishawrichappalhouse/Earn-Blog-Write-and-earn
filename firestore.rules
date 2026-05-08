@@ -95,7 +95,7 @@ service cloud.firestore {
 
     function isValidUser(data) {
       let requiredFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role', 'createdAt'];
-      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referredBy', 'referralCount', 'referralEarnings'];
+      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referredBy', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.uid is string && data.uid.size() > 0 &&
@@ -103,6 +103,9 @@ service cloud.firestore {
              data.displayName is string && data.displayName.size() > 0 &&
              data.coins is number && data.coins >= 0 &&
              data.totalEarned is number && data.totalEarned >= 0 &&
+             (!('lastBonusClaimAt' in data) || (data.lastBonusClaimAt is timestamp || data.lastBonusClaimAt == null)) &&
+             (!('lastBonusClaimDate' in data) || (data.lastBonusClaimDate is string || data.lastBonusClaimDate == null)) &&
+             (!('dailyBonusCount' in data) || (data.dailyBonusCount is number && data.dailyBonusCount >= 0)) &&
              (!('referredBy' in data) || (data.referredBy is string || data.referredBy == null)) &&
              (!('referralCount' in data) || (data.referralCount is number && data.referralCount >= 0)) &&
              (!('referralEarnings' in data) || (data.referralEarnings is number && data.referralEarnings >= 0)) &&
@@ -209,7 +212,7 @@ service cloud.firestore {
       allow update: if (isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referralCount', 'referralEarnings']) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'coins', 'totalEarned', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount']) &&
          isValidUser(request.resource.data) &&
          // Prevent self-approval of membership
          (
