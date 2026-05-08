@@ -94,15 +94,15 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      let requiredFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role', 'createdAt'];
-      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'referredBy', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount'];
+      let requiredFields = ['uid', 'email', 'displayName', 'coins', 'totalEarned', 'role'];
+      let optionalFields = ['photoURL', 'membership', 'lastLoginAt', 'lastActiveAt', 'isOnline', 'createdAt', 'referredBy', 'referralCount', 'referralEarnings', 'lastBonusClaimAt', 'lastBonusClaimDate', 'dailyBonusCount'];
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(requiredFields.concat(optionalFields)) &&
              data.uid is string && data.uid.size() > 0 &&
              data.email is string && data.email.size() > 0 &&
-             data.displayName is string && data.displayName.size() > 0 &&
-             data.coins is number && data.coins >= 0 &&
-             data.totalEarned is number && data.totalEarned >= 0 &&
+             data.displayName is string &&
+             data.coins is number &&
+             data.totalEarned is number &&
              (!('lastBonusClaimAt' in data) || (data.lastBonusClaimAt is timestamp || data.lastBonusClaimAt == null)) &&
              (!('lastBonusClaimDate' in data) || (data.lastBonusClaimDate is string || data.lastBonusClaimDate == null)) &&
              (!('dailyBonusCount' in data) || (data.dailyBonusCount is number && data.dailyBonusCount >= 0)) &&
@@ -110,7 +110,7 @@ service cloud.firestore {
              (!('referralCount' in data) || (data.referralCount is number && data.referralCount >= 0)) &&
              (!('referralEarnings' in data) || (data.referralEarnings is number && data.referralEarnings >= 0)) &&
              data.role in ['user', 'admin'] &&
-             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt == request.time)) &&
              (!('lastLoginAt' in data) || (data.lastLoginAt is timestamp || data.lastLoginAt == request.time)) &&
              (!('lastActiveAt' in data) || (data.lastActiveAt is timestamp || data.lastActiveAt == request.time)) &&
              (!('isOnline' in data) || data.isOnline is bool) &&

@@ -2356,6 +2356,7 @@ const Dashboard = () => {
       return;
     }
 
+    const path = `users/${user.uid}`;
     try {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
@@ -2369,9 +2370,27 @@ const Dashboard = () => {
         description: 'You earned 10 coins.',
         icon: <Coins className="w-4 h-4 text-orange-500" />
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error granting bonus:', error);
-      toast.error('Failed to claim bonus. Please try again.');
+      
+      // Detailed error info for the AI system to diagnose permissions
+      const errInfo = {
+        error: error.message,
+        operationType: 'update',
+        path,
+        authInfo: {
+          userId: user.uid,
+          email: user.email,
+          emailVerified: user.emailVerified
+        }
+      };
+      console.error('Firestore Error Details:', JSON.stringify(errInfo));
+      
+      toast.error('Failed to claim bonus', {
+        description: error.message.includes('permission') 
+          ? 'Security rule restriction. Please contact support.'
+          : 'Please try again later or check your connection.'
+      });
     }
   };
 
