@@ -119,6 +119,9 @@ interface UserProfile {
   referredBy?: string;
   referralCount?: number;
   referralEarnings?: number;
+  lastBonusClaimAt?: any;
+  lastBonusClaimDate?: string;
+  dailyBonusCount?: number;
 }
 
 interface BlogPost {
@@ -2329,18 +2332,46 @@ const Dashboard = () => {
 
   const handleBonusClick = async () => {
     if (!user) return;
+
+    const now = new Date();
+    const today = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+    
+    const lastClaimAt = user.lastBonusClaimAt?.toDate ? user.lastBonusClaimAt.toDate() : user.lastBonusClaimAt;
+    const dailyCount = user.lastBonusClaimDate === today ? (user.dailyBonusCount || 0) : 0;
+
+    // Check Daily Limit (10)
+    if (dailyCount >= 10) {
+      toast.error('Daily Limit Reached', {
+        description: 'You have already claimed your 10 daily bonuses today.'
+      });
+      return;
+    }
+
+    // Check Cooldown (60 seconds)
+    if (lastClaimAt && (now.getTime() - new Date(lastClaimAt).getTime() < 60000)) {
+      const secondsLeft = Math.ceil(60 - (now.getTime() - new Date(lastClaimAt).getTime()) / 1000);
+      toast.error('Cooldown Active', {
+        description: `Please wait ${secondsLeft} seconds before claiming again.`
+      });
+      return;
+    }
+
     try {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         coins: increment(10),
-        totalEarned: increment(10)
+        totalEarned: increment(10),
+        lastBonusClaimAt: serverTimestamp(),
+        lastBonusClaimDate: today,
+        dailyBonusCount: dailyCount + 1
       });
-      toast.success('Bonus Revenue Active!', {
+      toast.success('Bonus Claimed!', {
         description: 'You earned 10 coins.',
         icon: <Coins className="w-4 h-4 text-orange-500" />
       });
     } catch (error) {
       console.error('Error granting bonus:', error);
+      toast.error('Failed to claim bonus. Please try again.');
     }
   };
 
@@ -2534,7 +2565,13 @@ const Dashboard = () => {
           </div>
           
           <div className="lg:col-span-2">
-            <HighCPMBooster coins={20} onComplete={handleBonusClick} />
+            <HighCPMBooster 
+              coins={20} 
+              onComplete={handleBonusClick} 
+              lastClaimAt={user?.lastBonusClaimAt}
+              lastClaimDate={user?.lastBonusClaimDate}
+              dailyCount={user?.dailyBonusCount}
+            />
           </div>
         </div>
 

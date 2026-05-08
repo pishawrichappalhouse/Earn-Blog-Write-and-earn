@@ -321,10 +321,41 @@ export const AntiAdblock: React.FC = () => {
   );
 };
 
-export const HighCPMBooster: React.FC<{ coins: number; onComplete: () => void }> = ({ coins, onComplete }) => {
+export const HighCPMBooster: React.FC<{ 
+  coins: number; 
+  onComplete: () => void;
+  lastClaimAt?: any;
+  lastClaimDate?: string;
+  dailyCount?: number;
+}> = ({ coins, onComplete, lastClaimAt, lastClaimDate, dailyCount = 0 }) => {
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [timeLeft, setTimeLeft] = React.useState(0);
+
+  const today = new Date().toLocaleDateString('en-CA');
+  const countToday = lastClaimDate === today ? dailyCount : 0;
+  const isLimitReached = countToday >= 10;
+
+  useEffect(() => {
+    if (!lastClaimAt) return;
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      const last = lastClaimAt?.toDate ? lastClaimAt.toDate() : new Date(lastClaimAt);
+      const diff = now.getTime() - last.getTime();
+      const remaining = Math.max(0, 60000 - diff);
+      setTimeLeft(Math.ceil(remaining / 1000));
+      
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lastClaimAt]);
 
   const handleBoost = () => {
+    if (timeLeft > 0 || isLimitReached) return;
+    
     setIsProcessing(true);
     // Open Smartlink
     window.open(SMARTLINK_URL, '_blank');
@@ -336,42 +367,60 @@ export const HighCPMBooster: React.FC<{ coins: number; onComplete: () => void }>
     }, 2500);
   };
 
+  const isDisabled = isProcessing || timeLeft > 0 || isLimitReached;
+
   return (
-    <div className="p-6 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl text-white shadow-xl overflow-hidden relative group">
+    <div className={`p-6 bg-gradient-to-br ${isLimitReached ? 'from-gray-600 to-gray-700' : 'from-purple-600 to-indigo-700'} rounded-3xl text-white shadow-xl overflow-hidden relative group transition-all duration-500`}>
       <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500" />
       
       <div className="relative z-10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white/20 rounded-xl">
-            <svg className="w-5 h-5 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-            </svg>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 ${isLimitReached ? 'bg-white/10' : 'bg-white/20'} rounded-xl`}>
+              <svg className={`w-5 h-5 ${isLimitReached ? 'text-gray-400' : 'text-yellow-300'}`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-100 italic">
+              {isLimitReached ? 'Limit Reached' : timeLeft > 0 ? 'Cooldown' : 'High-CPM Active'}
+            </span>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-100 italic">High-CPM Active</span>
+          <div className="text-[10px] font-bold bg-black/20 px-2 py-1 rounded-lg">
+            {countToday}/10 Today
+          </div>
         </div>
 
         <h3 className="text-xl font-black mb-2 leading-tight">Super Bonus Reward</h3>
         <p className="text-xs text-purple-100 font-medium mb-6 opacity-80">
-          Use the High-Speed Sponsored gateway to claim <span className="text-yellow-300 font-bold">{coins} coins</span> instantly.
+          {isLimitReached 
+            ? "You've reached your daily limit. Come back tomorrow!" 
+            : `Claim your extra reward. Each claim grants you ${coins} coins.`}
         </p>
 
         <button
           onClick={handleBoost}
-          disabled={isProcessing}
+          disabled={isDisabled}
           className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3 ${
-            isProcessing
-              ? 'bg-white/20 text-white cursor-wait'
+            isDisabled
+              ? 'bg-white/10 text-white/50 cursor-not-allowed'
               : 'bg-white text-indigo-600 hover:bg-yellow-300 hover:text-indigo-900 shadow-lg'
           }`}
         >
           {isProcessing ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Processing Boost...
+              Processing...
+            </>
+          ) : isLimitReached ? (
+            'Come Back Tomorrow'
+          ) : timeLeft > 0 ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/10 border-t-blue-300 rounded-full animate-spin" />
+              Wait {timeLeft}s
             </>
           ) : (
             <>
-              Claim {coins} Coins Now
+              Claim {coins} Coins
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
