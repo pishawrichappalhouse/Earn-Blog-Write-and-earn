@@ -38,6 +38,7 @@ import {
   Settings,
   ExternalLink,
   Plus,
+  Minus,
   Wallet,
   AlertCircle,
   Check,
@@ -3023,6 +3024,8 @@ const BPAPanel = () => {
   const [allWithdrawals, setAllWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [allDeposits, setAllDeposits] = useState<Deposit[]>([]);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
+  const [injectViewsInputs, setInjectViewsInputs] = useState<Record<string, string>>({});
+  const [isInjecting, setIsInjecting] = useState<Record<string, boolean>>({});
   const [platformStats, setPlatformStats] = useState({ totalUsers: 0, totalEarnings: 0, totalWithdrawals: 0, totalReferrals: 0 });
   const navigate = useNavigate();
 
@@ -3169,6 +3172,52 @@ const BPAPanel = () => {
     } catch (error) {
       toast.error('Failed to update post status');
       console.error(error);
+    }
+  };
+
+  const handleInjectViews = async (postId: string, mode: 'add' | 'remove') => {
+    const amountStr = injectViewsInputs[postId];
+    let amount = parseInt(amountStr);
+    
+    if (!amountStr || isNaN(amount) || amount <= 0) {
+      toast.error('Enter valid views count');
+      return;
+    }
+
+    if (mode === 'remove') {
+      amount = -amount;
+    }
+
+    const post = allPosts.find(p => p.id === postId);
+    if (!post) {
+      toast.error('Post not found');
+      return;
+    }
+
+    setIsInjecting(prev => ({ ...prev, [postId]: true }));
+    try {
+      const postRef = doc(db, 'posts', postId);
+      await updateDoc(postRef, {
+        views: increment(amount)
+      });
+
+      // Award or deduct coins to the author for these injected views
+      const coinReward = amount * (settings?.coinValuePerView || 1);
+      const authorRef = doc(db, 'users', post.authorId);
+      await updateDoc(authorRef, {
+        coins: increment(coinReward),
+        totalEarned: increment(coinReward)
+      });
+
+      const actionText = mode === 'add' ? 'added' : 'removed';
+      const coinText = mode === 'add' ? 'awarded to' : 'deducted from';
+      toast.success(`${Math.abs(amount)} views ${actionText}! & ${Math.abs(coinReward).toFixed(0)} coins ${coinText} author.`);
+      setInjectViewsInputs(prev => ({ ...prev, [postId]: '' }));
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update views');
+    } finally {
+      setIsInjecting(prev => ({ ...prev, [postId]: false }));
     }
   };
 
@@ -3852,9 +3901,38 @@ const BPAPanel = () => {
                             <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded-lg text-gray-600">{post.category}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1 text-gray-600">
-                              <Eye className="w-4 h-4" />
-                              <span className="text-sm font-bold">{post.views}</span>
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="flex items-center justify-center gap-1 text-gray-600">
+                                <Eye className="w-4 h-4" />
+                                <span className="text-sm font-bold">{post.views}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <input 
+                                  type="number"
+                                  placeholder="Count"
+                                  value={injectViewsInputs[post.id] || ''}
+                                  onChange={(e) => setInjectViewsInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                  className="w-16 h-7 text-[10px] bg-gray-50 border border-gray-100 rounded px-1 focus:ring-1 focus:ring-orange-500 outline-none"
+                                />
+                                <div className="flex flex-col gap-0.5">
+                                  <button 
+                                    onClick={() => handleInjectViews(post.id, 'add')}
+                                    disabled={isInjecting[post.id]}
+                                    className="h-3.5 w-6 flex items-center justify-center bg-green-500 text-white rounded-t hover:bg-green-600 disabled:opacity-50 transition-colors"
+                                    title="Add Views"
+                                  >
+                                    {isInjecting[post.id] ? <Loader2 className="w-2 h-2 animate-spin" /> : <Plus className="w-2.5 h-2.5" />}
+                                  </button>
+                                  <button 
+                                    onClick={() => handleInjectViews(post.id, 'remove')}
+                                    disabled={isInjecting[post.id]}
+                                    className="h-3.5 w-6 flex items-center justify-center bg-red-500 text-white rounded-b hover:bg-red-600 disabled:opacity-50 transition-colors"
+                                    title="Remove Views"
+                                  >
+                                    {isInjecting[post.id] ? <Loader2 className="w-2 h-2 animate-spin" /> : <Minus className="w-2.5 h-2.5" />}
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
